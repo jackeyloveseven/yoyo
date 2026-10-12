@@ -22,6 +22,6 @@ cd webtrainer/rust && ./scripts/cargo.sh test -p webtrainer-recipes
 ```
 
 算法对照 receipt 位于
-[`receipts/v2/v1_v2_algorithm_characterization.json`](receipts/v2/v1_v2_algorithm_characterization.json)。
+[`receipts/v2/v1_v2_algorithm_characterization.json`](../../receipts/v2/v1_v2_algorithm_characterization.json)。
 v2 只有在对应 model plugin 完成 no-update、one-update 和 checkpoint readback 后，才能发布新的 recipe
 版本把 `launch_enabled` 改为 true。

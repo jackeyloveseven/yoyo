@@ -177,7 +177,7 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 | 贡献与代码质量标准 | [`CONTRIBUTING_V2.md`](CONTRIBUTING_V2.md) |
 | 可组合示例索引 | [`examples/README.md`](examples/README.md) |
 | 数学与算法约定 | [`docs/algorithms/README.md`](docs/algorithms/README.md) |
-| 重构与零件抽取记录 | [`REFACTORING_HANDOFF.md`](REFACTORING_HANDOFF.md) |
+| 重构与零件抽取记录 | [`docs/REFACTORING_HANDOFF.md`](docs/REFACTORING_HANDOFF.md) |
 
 提交前在本地跑一遍所有质量门：
 
