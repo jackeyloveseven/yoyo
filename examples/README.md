@@ -22,3 +22,4 @@ Each script can be run standalone (`PYTHONPATH=src python examples/<name>.py`) t
 4. [`train_rl_diffusionnft.py`](./train_rl_diffusionnft.py) — Online RL with `diffusion_nft_loss`, EMA reference updates, `parse_rational_rewards_scores`, and `cosine_identity_loss`.
 5. [`train_rl_flow_grpo.py`](./train_rl_flow_grpo.py) — Trajectory RL with `sde_step_with_logprob`, `group_relative_advantages`, `ppo_clipped_surrogate`, and `diffusion_opsd_fitting_loss`.
 6. [`custom_model_and_infer.py`](./custom_model_and_infer.py) — Onboarding a brand-new model architecture via `BaseModelAdapter`, registering it in `PluginRegistry`, and running multi-step `euler_flow_step` / `dpm2_flow_step` inference.
+7. [`train_lcm_distill.py`](./train_lcm_distill.py) — Latent Consistency Model few-step distillation: online student + EMA target network, adjacent-step bootstrap consistency via `lcm_consistency_loss`, `flow_sample`, and `euler_flow_step`.

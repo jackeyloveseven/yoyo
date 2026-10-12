@@ -94,6 +94,9 @@ PYTHONPATH=src:. python3 examples/train_rl_flow_grpo.py
 
 # ⑥ 接入一个全新模型架构 + Euler/DPM2 推理
 PYTHONPATH=src:. python3 examples/custom_model_and_infer.py
+
+# ⑦ LCM 少步蒸馏（在线学生 + EMA 目标，相邻步自举一致性）
+PYTHONPATH=src:. python3 examples/train_lcm_distill.py
 ```
 
 ---
