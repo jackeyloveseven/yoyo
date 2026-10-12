@@ -129,10 +129,49 @@ LoRA 打前馈层,其它模型只打注意力层,LoRA 配置不可跨模型照�
 
 ---
 
+## 2026-10:LCM 少步蒸馏——第一个走完整 import-method SOP 的方法
+
+**做了什么**:新增 `algorithms/latent_consistency/` 零件(`lcm_consistency_loss`),
+把 LCM(Latent Consistency Model)相邻步自举一致性蒸馏接入 rectified-flow;注册为
+`latent_consistency` 目标(image_training,无需 reward)。commit `fdfeeb2`。
+
+**为什么**:Diffusers 上游核查发现的真实算法空白——我们原有 DMD 系与 TDM 系蒸馏,
+但**没有一致性模型(LCM)少步蒸馏路径**,而 LCM 正是"少步蒸馏"的主流方向。这是
+第一个完整走完 [`sourcing/intake-sop.md`](sourcing/intake-sop.md) 全流程的方法,
+**验证了吸收 SOP 本身好用**。
+
+**怎么做的(人机分工)**:人(主线 agent)先审定数学规格(SOP 第 1 步把关点),再把
+规格、接口契约、架构门、测试要求写死进子代理任务;子代理只实现、不做数学决策;
+主线 agent 事后**逐行独立复核**数学与测试覆盖(把关点 2/3)后才提交。
+
+**数学(rectified-flow 约定)**:`x0_online = x_t - t·v_θ`(保留梯度);自举状态
+`x_{t'} = euler_flow_step(x_t, v_θ.detach(), t, t')` 在 `no_grad` 下构造(只留一阶
+路径);`x0_target` detach;伪 Huber `sqrt(Δ²+c²)-c`(c=1e-3)。区别于 TDM/DMD:
+无需教师多步 rollout,也无需独立 fake-score 网络。
+
+**参考**:SimpleTuner `distillation/lcm/` 提供数学对照(见雷达表),按 ADR-0003
+只参考数学、不抄其框架类结构。
+
+**验证**:5 道门全绿(quality 85 文件 / docs 35 文件 1537 行 / ruff / format /
+structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶路径)。
+**规格偏离:零。**
+
+**过程教训(子代理诚实上报,值得后来者警惕)**:
+- 新辅助函数撞了 `reward_matching` 的 50-token 重复窗口门 → 重写为列表推导;
+- 一处"对 online 二阶导为 0"的断言数学上不成立(fixed-point 附近为 1/(2c)≈500)
+  → 改为对 target 验证 + 解析参考逐元素比对,这才是"自举项被停住"的正确判据;
+- 伪 Huber 在 `c=0` 退化为 `|Δ|`(原点梯度无定义),文档建议保留正的 c。
+
+**遗留**:`launch_enabled=false`,GPU 晋级未做;LCM 尚无端到端训练示例(可在
+`examples/` 补一个,把"学生一步 vs 教师多步"采样对比跑起来)。
+
+---
+
 ## 待办与已知边界(动态更新)
 
 - **GPU 晋级**:所有模型 `launch_enabled=false`;需 WebTrainer 跑晋级阶梯,本仓库无法完成。
-- **上游雷达**:除 Miles 外,其余 7 个上游尚未完成首轮核查。
+- **上游雷达**:已核 4/8(Miles、Diffusers、Musubi、SimpleTuner),余 SGLang、vLLM、
+  DiffSynth(与本仓库相关性较低,可缓)。
 
 > 2026-10-12 更新:`docs/adr/` 首批 4 篇 ADR 已补录(注册表/质量门/吸收原则/compose
 > 边界),本日志相应条目即其素材来源。
