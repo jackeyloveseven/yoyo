@@ -8,6 +8,7 @@ so they can be unit-tested; the CLI layer only collects choices and renders.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from mmtrainer.compose.guidance import (
@@ -100,3 +101,54 @@ def build_blueprint(registries: RegistrySet, choice: ComposeChoice) -> dict[str,
             "注册资产哈希与运行时拓扑由 WebTrainer 控制面在运行时填充。"
         ),
     }
+
+
+def render_blueprint_markdown(blueprint: Mapping[str, object]) -> str:
+    """把蓝图渲染为一份人可读的 Markdown 文档(供 ``--output plan.md`` 落盘)。"""
+
+    def _bullets(key: str) -> list[str]:
+        values = blueprint.get(key, [])
+        if not isinstance(values, list) or not values:
+            return ["- (无)"]
+        return [f"- {item}" for item in values]
+
+    lines = [
+        f"# 训练蓝图:{blueprint['model']} × {blueprint['objective']}",
+        "",
+        f"> {blueprint['disclaimer']}",
+        "",
+        "## 组件",
+        "",
+        f"- 模型:`{blueprint['model']}`",
+        f"- 目标:`{blueprint['objective']}`",
+        f"- reward:`{blueprint['reward']}`",
+        f"- 数据集:`{blueprint['dataset']}`",
+        "",
+        "## 概要",
+        "",
+        str(blueprint["summary"]),
+        "",
+        "## 该监控的实验指标",
+        "",
+        *_bullets("metrics"),
+    ]
+    reward_metrics = blueprint.get("reward_metrics")
+    if isinstance(reward_metrics, list) and reward_metrics:
+        lines += ["", "### reward 指标", "", *_bullets("reward_metrics")]
+    lines += [
+        "",
+        "## 该做的可视化",
+        "",
+        *_bullets("visualizations"),
+    ]
+    notes = blueprint.get("notes")
+    if isinstance(notes, list) and notes:
+        lines += ["", "## 注意事项", "", *_bullets("notes")]
+    lines += [
+        "",
+        "## 下一步(晋级阶梯)",
+        "",
+        *_bullets("next_steps"),
+        "",
+    ]
+    return "\n".join(lines)

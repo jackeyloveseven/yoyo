@@ -48,6 +48,12 @@ def _parser() -> argparse.ArgumentParser:
     compose.add_argument("--model", help="model plugin id (skip interactive prompt)")
     compose.add_argument("--objective", help="objective plugin id (skip interactive prompt)")
     compose.add_argument("--reward", help="reward plugin id (skip interactive prompt)")
+    compose.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="write the blueprint to a .json or .md file instead of only printing",
+    )
     return parser
 
 
@@ -121,7 +127,11 @@ def _pick(prompt: str, options: list[str], preset: str | None) -> str:
 
 
 def _run_compose(args: argparse.Namespace) -> int:
-    from mmtrainer.compose import ComposeChoice, build_blueprint
+    from mmtrainer.compose import (
+        ComposeChoice,
+        build_blueprint,
+        render_blueprint_markdown,
+    )
     from mmtrainer.compose.compose import compatible_objectives, compatible_rewards
 
     registries = build_builtin_registries()
@@ -138,7 +148,21 @@ def _run_compose(args: argparse.Namespace) -> int:
         registries,
         ComposeChoice(model_id=model_id, objective_id=objective_id, reward_id=reward_id),
     )
-    _print(blueprint)
+    output: Path | None = args.output
+    if output is None:
+        _print(blueprint)
+        return 0
+    suffix = output.suffix.lower()
+    if suffix == ".json":
+        output.write_text(
+            json.dumps(blueprint, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    elif suffix in (".md", ".markdown"):
+        output.write_text(render_blueprint_markdown(blueprint), encoding="utf-8")
+    else:
+        raise ValueError(f"--output 只支持 .json 或 .md,收到: {output.name}")
+    print(f"蓝图已写入 {output}")
     return 0
 
 

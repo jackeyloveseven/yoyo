@@ -12,6 +12,7 @@ from mmtrainer.compose.compose import (
     build_blueprint,
     compatible_objectives,
     compatible_rewards,
+    render_blueprint_markdown,
 )
 from mmtrainer.compose.guidance import (
     NEXT_STEP_GUIDANCE,
@@ -29,4 +30,5 @@ __all__ = [
     "build_blueprint",
     "compatible_objectives",
     "compatible_rewards",
+    "render_blueprint_markdown",
 ]

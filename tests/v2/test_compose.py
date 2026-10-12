@@ -69,3 +69,31 @@ def test_build_blueprint_rejects_incompatible(registries) -> None:
             registries,
             ComposeChoice(model_id="krea2", objective_id="image_sft", reward_id="pickscore"),
         )
+
+
+def test_render_blueprint_markdown_covers_sections(registries) -> None:
+    from mmtrainer.compose import render_blueprint_markdown
+
+    blueprint = build_blueprint(
+        registries,
+        ComposeChoice(model_id="krea2", objective_id="flow_grpo", reward_id="hpsv3pp"),
+    )
+    markdown = render_blueprint_markdown(blueprint)
+    assert markdown.startswith("# 训练蓝图:krea2 × flow_grpo")
+    for section in (
+        "## 组件",
+        "## 概要",
+        "## 该监控的实验指标",
+        "### reward 指标",
+        "## 该做的可视化",
+        "## 下一步(晋级阶梯)",
+    ):
+        assert section in markdown
+    # reward 指标需真实出现在 reward 小节
+    assert "hps 美学分" in markdown
+    # 无需 reward 的目标不渲染 reward 小节
+    sft = build_blueprint(
+        registries,
+        ComposeChoice(model_id="klein", objective_id="image_sft", reward_id="none"),
+    )
+    assert "### reward 指标" not in render_blueprint_markdown(sft)
