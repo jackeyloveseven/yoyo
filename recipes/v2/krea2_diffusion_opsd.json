@@ -1,0 +1,14 @@
+{
+  "schema_version": "mmtrainer.run-spec.v2",
+  "run_id": "template-krea2-diffusion-opsd",
+  "recipe_id": "krea2-diffusion-opsd-v2",
+  "recipe_version": "2.0.0",
+  "source_release": "training-code-v2.0.0",
+  "model": {"plugin_id": "krea2", "assets": [{"asset_id": "krea2-model", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "objective": {"plugin_id": "diffusion_opsd"},
+  "dataset": {"plugin_id": "manifest", "assets": [{"asset_id": "krea2-dataset", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "reward": {"plugin_id": "pickscore", "assets": [{"asset_id": "pickscore-reward", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "runtime": {"target_id": "local_h200", "hosts": ["local_h200"], "world_size": 1, "gpus_per_node": 8, "environment_id": "krea2-v2-candidate", "output_id": "krea2-v2-output"},
+  "lifecycle": {"mode": "fresh", "max_updates": 1},
+  "qualification": {"launch_enabled": false, "promotion_qualified": false}
+}

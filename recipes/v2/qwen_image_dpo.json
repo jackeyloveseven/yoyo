@@ -1,0 +1,13 @@
+{
+  "schema_version": "mmtrainer.run-spec.v2",
+  "run_id": "template-qwen-image-dpo",
+  "recipe_id": "qwen-image-dpo-v2",
+  "recipe_version": "2.0.0",
+  "source_release": "training-code-v2.0.0",
+  "model": {"plugin_id": "qwen_image", "assets": [{"asset_id": "qwen-image-model", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "objective": {"plugin_id": "image_dpo"},
+  "dataset": {"plugin_id": "manifest", "assets": [{"asset_id": "qwen-dpo-dataset", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "runtime": {"target_id": "local_h200", "hosts": ["local_h200"], "world_size": 1, "gpus_per_node": 8, "environment_id": "qwen-v2-candidate", "output_id": "qwen-v2-output"},
+  "lifecycle": {"mode": "fresh", "max_updates": 1},
+  "qualification": {"launch_enabled": false, "promotion_qualified": false}
+}

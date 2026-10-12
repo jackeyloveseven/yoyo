@@ -1,0 +1,55 @@
+name: YoYo CI & Architecture Gates
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-tests:
+    name: Quality, Structure, Docs & Unit Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install CPU PyTorch and package dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e ".[test,checkpoint]" Pillow
+
+      - name: Run AST & Code Quality Gate
+        run: PYTHONPATH=src python check_v2_quality.py
+
+      - name: Run Component Structure & Dependency Gate
+        run: python check_structure.py
+
+      - name: Run Documentation & Link Integrity Gate
+        run: python check_docs.py
+
+      - name: Run Unit & Component Integration Tests
+        run: PYTHONPATH=src:. pytest tests/v2 -v
+
+      - name: Run All Composable Example Scripts
+        run: |
+          for script in examples/*.py; do
+            echo "=== Running $script ==="
+            PYTHONPATH=src:. python "$script"
+          done

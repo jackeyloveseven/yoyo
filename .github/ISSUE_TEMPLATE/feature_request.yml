@@ -1,0 +1,24 @@
+name: New Component / Model Adapter Request
+description: Propose a new model adapter, RL objective, distillation loss, or reward scorer
+title: "[Component]: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Component Category
+      options:
+        - "New Model Adapter (BaseModelAdapter subclass)"
+        - "New Post-Training / RL Objective"
+        - "New Distillation / Regularization Loss"
+        - "New Reward Protocol / Scorer"
+        - "New Composable Example Script"
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Motivation & Mathematical / Architectural Formulation
+      description: Describe the component interface, inputs/outputs, and how it composes with existing blocks.
+    validations:
+      required: true

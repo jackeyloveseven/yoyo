@@ -1,0 +1,115 @@
+"""The single command-line boundary for Training Code v2."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+
+from mmtrainer.config import load_run_spec
+from mmtrainer.engine import Phase, TrainingEngine
+from mmtrainer.errors import MMTrainerError
+from mmtrainer.registry import build_builtin_registries
+from mmtrainer.runtime import import_v1_policy
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="mmtrain")
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    plan = commands.add_parser("plan")
+    plan_commands = plan.add_subparsers(dest="plan_command", required=True)
+    validate = plan_commands.add_parser("validate")
+    validate.add_argument("--spec", required=True, type=Path)
+
+    phase = commands.add_parser("phase")
+    phase_commands = phase.add_subparsers(dest="phase_command", required=True)
+    run = phase_commands.add_parser("run")
+    run.add_argument("--spec", required=True, type=Path)
+    run.add_argument("--expected-sha256", required=True)
+    run.add_argument("--phase", required=True, choices=[item.value for item in Phase])
+
+    checkpoint = commands.add_parser("checkpoint")
+    checkpoint_commands = checkpoint.add_subparsers(dest="checkpoint_command", required=True)
+    import_policy = checkpoint_commands.add_parser("import-policy")
+    import_policy.add_argument("--source", required=True, type=Path)
+    import_policy.add_argument("--source-sha256", required=True)
+    import_policy.add_argument("--source-release", required=True)
+    import_policy.add_argument("--model", required=True)
+    import_policy.add_argument("--output", required=True, type=Path)
+
+    registry = commands.add_parser("registry")
+    registry_commands = registry.add_subparsers(dest="registry_command", required=True)
+    registry_commands.add_parser("list")
+    return parser
+
+
+def _print(value: object) -> None:
+    print(json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def _validate_plan(spec_path: Path) -> int:
+    spec = load_run_spec(spec_path)
+    result = TrainingEngine(spec, build_builtin_registries()).validate()
+    _print(result)
+    return 0
+
+
+def _run_phase(spec_path: Path, expected_sha256: str, phase: str) -> int:
+    spec = load_run_spec(spec_path)
+    if spec.canonical_sha256() != expected_sha256:
+        raise ValueError("run spec SHA-256 differs from the immutable execution plan")
+    result = TrainingEngine(spec, build_builtin_registries()).run(Phase(phase))
+    _print(result)
+    return 0
+
+
+def _import_policy(args: argparse.Namespace) -> int:
+    registries = build_builtin_registries()
+    model_type = registries.models.resolve(args.model)
+    receipt = import_v1_policy(
+        source=args.source,
+        expected_source_sha256=args.source_sha256,
+        source_release=args.source_release,
+        model_plugin_id=args.model,
+        allowed_keys=model_type.v1_policy_keys,
+        output=args.output,
+    )
+    _print(receipt)
+    return 0
+
+
+def _list_registry() -> int:
+    registries = build_builtin_registries()
+    payload = {
+        "models": [entry.plugin_id for entry in registries.models.entries()],
+        "objectives": [entry.plugin_id for entry in registries.objectives.entries()],
+        "rewards": [entry.plugin_id for entry in registries.rewards.entries()],
+        "datasets": [entry.plugin_id for entry in registries.datasets.entries()],
+        "checkpoints": [entry.plugin_id for entry in registries.checkpoints.entries()],
+    }
+    _print(payload)
+    return 0
+
+
+def dispatch(args: argparse.Namespace) -> int:
+    if args.command == "plan" and args.plan_command == "validate":
+        return _validate_plan(args.spec)
+    if args.command == "phase" and args.phase_command == "run":
+        return _run_phase(args.spec, args.expected_sha256, args.phase)
+    if args.command == "checkpoint" and args.checkpoint_command == "import-policy":
+        return _import_policy(args)
+    if args.command == "registry" and args.registry_command == "list":
+        return _list_registry()
+    raise AssertionError("argparse returned an unregistered command")
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        return dispatch(args)
+    except MMTrainerError as error:
+        print(f"mmtrain: {error}", file=sys.stderr)
+        return 2

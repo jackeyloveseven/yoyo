@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yoyo-mmtrainer"
+version = "2.0.1"
+description = "YoYo (You Only Y___ Once): Composable Post-Training, Distillation & RL Scaffold for Flow-Matching and Diffusion Models"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10,<3.14"
+keywords = [
+  "diffusion",
+  "flow-matching",
+  "dpo",
+  "rlhf",
+  "grpo",
+  "distillation",
+  "lora-moe",
+  "fsdp2",
+  "multimodal",
+]
+dependencies = [
+  "pydantic>=2.13,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/jackeyloveseven/yoyo"
+Repository = "https://github.com/jackeyloveseven/yoyo"
+Issues = "https://github.com/jackeyloveseven/yoyo/issues"
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8,<10",
+  "ruff>=0.9,<1",
+]
+checkpoint = [
+  "safetensors>=0.6,<1",
+  "torch>=2.1",
+  "torchvision>=0.16",
+  "Pillow>=10.0",
+]
+
+[project.scripts]
+mmtrain = "mmtrainer.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests/v2"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C901", "PLR0913", "PLR0915"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.pylint]
+max-args = 8

@@ -1,0 +1,13 @@
+{
+  "schema_version": "mmtrainer.run-spec.v2",
+  "run_id": "template-klein-image-sft",
+  "recipe_id": "klein-image-sft-v2",
+  "recipe_version": "2.0.0",
+  "source_release": "training-code-v2.0.0",
+  "model": {"plugin_id": "klein", "assets": [{"asset_id": "klein-model", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "objective": {"plugin_id": "image_sft"},
+  "dataset": {"plugin_id": "manifest", "assets": [{"asset_id": "klein-dataset", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "runtime": {"target_id": "local_h200", "hosts": ["local_h200"], "world_size": 1, "gpus_per_node": 8, "environment_id": "klein-v2-candidate", "output_id": "klein-v2-output"},
+  "lifecycle": {"mode": "fresh", "max_updates": 1},
+  "qualification": {"launch_enabled": false, "promotion_qualified": false}
+}

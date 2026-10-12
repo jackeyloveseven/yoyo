@@ -1,0 +1,18 @@
+{
+  "schema_version": "mmtrainer.algorithm-characterization.v2",
+  "source_release": "training-code-v1.9.0",
+  "target_interface": "mmtrainer-training-code@2.0.0",
+  "seed": 7,
+  "dtype": "torch.float32",
+  "algorithms": {
+    "asymmetric_dpo": {"max_abs_diff": 0.0, "golden_loss": 0.8429608345031738},
+    "diffusion_nft": {"max_abs_diff": 0.0, "golden_loss": 10.531647682189941},
+    "flow_grpo_ppo": {"max_abs_diff": 0.0, "golden_loss": 0.3281577229499817},
+    "diffusion_opsd": {"max_abs_diff": 0.0, "golden_loss": 4.880653381347656},
+    "flowmimic_opsd": {"max_abs_diff": 0.0, "golden_loss": 0.3336164057254791},
+    "advantage_weighted_matching": {"max_abs_diff": 0.0, "golden_loss": 1.5761401653289795}
+  },
+  "result": "passed",
+  "runtime_qualification": false,
+  "promotion_qualified": false
+}

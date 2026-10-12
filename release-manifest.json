@@ -1,0 +1,57 @@
+{
+  "schema_version": "mmtrainer.training-code-release.v2",
+  "version": "2.0.1",
+  "source_root": "training_code/src/mmtrainer",
+  "git_tag": "training-code-v2.0.1",
+  "run_spec_schema": "mmtrainer.run-spec.v2",
+  "checkpoint_schema": "mmtrainer.checkpoint.v2",
+  "legacy_release": {
+    "git_tag": "training-code-v1.9.0",
+    "exact_resume_policy": "v1_bundle_only",
+    "v2_import_policy": "policy_only_fork"
+  },
+  "status_model": [
+    "source_release",
+    "runtime_qualification",
+    "quality_promotion"
+  ],
+  "components": [
+    {
+      "id": "typed_core",
+      "path": "src/mmtrainer",
+      "source_status": "cpu_qualified",
+      "runtime_status": "preflight_only",
+      "quality_status": "not_applicable"
+    },
+    {
+      "id": "diffusion_algorithm_primitives",
+      "path": "src/mmtrainer/algorithms",
+      "source_status": "v1_numerically_characterized",
+      "runtime_status": "objective_plugins_disabled",
+      "quality_status": "not_promoted"
+    },
+    {
+      "id": "model_plugin_catalog",
+      "path": "src/mmtrainer/models",
+      "source_status": "registered",
+      "runtime_status": "per_model_gpu_receipt_required",
+      "quality_status": "not_promoted"
+    },
+    {
+      "id": "webtrainer_v2_adapter",
+      "path": "../webtrainer/rust/fixtures/v3/entrypoint_templates.json",
+      "source_status": "cpu_qualified",
+      "runtime_status": "disabled",
+      "quality_status": "not_applicable"
+    }
+  ],
+  "excluded_artifact_classes": [
+    "model_weights",
+    "checkpoints",
+    "datasets",
+    "rollout_images",
+    "databases",
+    "logs",
+    "credentials"
+  ]
+}

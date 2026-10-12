@@ -1,0 +1,57 @@
+{
+  "schema_version": "mmtrainer.run-spec.v2",
+  "run_id": "template-firered-edit-r1",
+  "recipe_id": "firered-edit-r1-v2",
+  "recipe_version": "2.0.0",
+  "source_release": "training-code-v2.0.0",
+  "model": {
+    "plugin_id": "firered",
+    "assets": [
+      {
+        "asset_id": "firered-edit-model",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  },
+  "objective": {
+    "plugin_id": "edit_r1",
+    "config": {
+      "group_size": 12,
+      "groups_per_update": 24,
+      "rollout_steps": 6,
+      "sampler": "dpm2",
+      "beta": 1.0,
+      "kl_beta": 0.0001,
+      "low_std_threshold": 0.05,
+      "high_mean_threshold": 0.9
+    }
+  },
+  "dataset": {
+    "plugin_id": "manifest",
+    "assets": [
+      {
+        "asset_id": "firered-edit-r1-dataset",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  },
+  "reward": {
+    "plugin_id": "edit_r1_mllm",
+    "assets": [
+      {
+        "asset_id": "edit-r1-mllm-reward",
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  },
+  "runtime": {
+    "target_id": "local_h200",
+    "hosts": ["local_h200"],
+    "world_size": 1,
+    "gpus_per_node": 8,
+    "environment_id": "firered-edit-r1-candidate",
+    "output_id": "firered-edit-r1-output"
+  },
+  "lifecycle": {"mode": "fresh", "max_updates": 1},
+  "qualification": {"launch_enabled": false, "promotion_qualified": false}
+}

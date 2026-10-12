@@ -1,0 +1,14 @@
+{
+  "schema_version": "mmtrainer.run-spec.v2",
+  "run_id": "template-sensenova-flow-grpo",
+  "recipe_id": "sensenova-flow-grpo-v2",
+  "recipe_version": "2.0.0",
+  "source_release": "training-code-v2.0.0",
+  "model": {"plugin_id": "sensenova", "assets": [{"asset_id": "sensenova-model", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "objective": {"plugin_id": "flow_grpo"},
+  "dataset": {"plugin_id": "manifest", "assets": [{"asset_id": "sensenova-dataset", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "reward": {"plugin_id": "hpsv3pp", "assets": [{"asset_id": "hpsv3pp-reward", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}]},
+  "runtime": {"target_id": "local_h200", "hosts": ["local_h200"], "world_size": 1, "gpus_per_node": 8, "environment_id": "sensenova-v2-candidate", "output_id": "sensenova-v2-output"},
+  "lifecycle": {"mode": "fresh", "max_updates": 1},
+  "qualification": {"launch_enabled": false, "promotion_qualified": false}
+}

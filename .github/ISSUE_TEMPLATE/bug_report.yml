@@ -1,0 +1,42 @@
+name: Bug Report
+description: Report a bug in a composable component, model adapter, or RL objective
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue in **YoYo**! Please fill out the sections below.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component Layer
+      options:
+        - "mmtrainer.nn (Flow, ODE Solvers, Schedules, FSDP2, LoRA-MoE)"
+        - "mmtrainer.models (BaseModelAdapter, Klein, Qwen-Image, Krea2, FireRed, SenseNova)"
+        - "mmtrainer.algorithms.sft_dpo (SFT, DPO, OPD, DMD2, NormGuard, REPA)"
+        - "mmtrainer.algorithms (DiffusionNFT, Flow-GRPO, DiffusionOPSD, Edit-R1)"
+        - "mmtrainer.datasets / mmtrainer.rewards"
+        - "mmtrainer.runtime / CLI / Checkpoints"
+        - "examples/"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Reproduction
+      description: Provide a minimal script or command that reproduces the issue.
+      placeholder: |
+        PYTHONPATH=src python examples/train_sft_edit.py
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        - OS: Ubuntu 22.04
+        - Python: 3.12
+        - PyTorch: 2.10
+    validations:
+      required: false
