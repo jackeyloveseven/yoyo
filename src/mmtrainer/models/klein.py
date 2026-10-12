@@ -58,12 +58,12 @@ def encode_klein_latents(
     images: torch.Tensor,
     weight_dtype: torch.dtype,
 ) -> torch.Tensor:
-    encoded = vae.encode(images.to(dtype=weight_dtype)).latent_dist. mode()
+    encoded = vae.encode(images.to(dtype=weight_dtype)).latent_dist.mode()
     latents = pipeline._patchify_latents(encoded)
     bn_mean = vae.bn.running_mean.view(1, -1, 1, 1).to(latents.device, latents.dtype)
-    bn_std = torch.sqrt(
-        vae.bn.running_var.view(1, -1, 1, 1) + vae.config.batch_norm_eps
-    ).to(latents.device, latents.dtype)
+    bn_std = torch.sqrt(vae.bn.running_var.view(1, -1, 1, 1) + vae.config.batch_norm_eps).to(
+        latents.device, latents.dtype
+    )
     return (latents - bn_mean) / bn_std
 
 
@@ -76,25 +76,15 @@ def encode_klein_reference_tokens(
     if reference_images is None:
         return None, None
     streams = (
-        [reference_images]
-        if isinstance(reference_images, torch.Tensor)
-        else list(reference_images)
+        [reference_images] if isinstance(reference_images, torch.Tensor) else list(reference_images)
     )
     if not streams:
         return None, None
-    ref_latents = [
-        encode_klein_latents(pipeline, vae, stream, weight_dtype) for stream in streams
-    ]
+    ref_latents = [encode_klein_latents(pipeline, vae, stream, weight_dtype) for stream in streams]
     batch_size = ref_latents[0].shape[0]
-    per_sample_refs = [
-        [stream[idx] for stream in ref_latents] for idx in range(batch_size)
-    ]
-    image_ids = pipeline._prepare_image_ids(per_sample_refs).to(
-        device=ref_latents[0].device
-    )
-    packed = torch.cat(
-        [pipeline._pack_latents(stream) for stream in ref_latents], dim=1
-    )
+    per_sample_refs = [[stream[idx] for stream in ref_latents] for idx in range(batch_size)]
+    image_ids = pipeline._prepare_image_ids(per_sample_refs).to(device=ref_latents[0].device)
+    packed = torch.cat([pipeline._pack_latents(stream) for stream in ref_latents], dim=1)
     return packed, image_ids
 
 
@@ -139,9 +129,7 @@ def prepare_klein_sft_batch(
     sample = flow_sample(clean_latents, sigmas=sigmas, noise=noise)
     packed_noisy = pipeline._pack_latents(sample.noisy_latents)
     packed_target = pipeline._pack_latents(sample.target_velocity)
-    img_ids = pipeline._prepare_latent_ids(clean_latents).to(
-        device=target_images.device
-    )
+    img_ids = pipeline._prepare_latent_ids(clean_latents).to(device=target_images.device)
     hidden_states, full_img_ids, token_count = _concat_klein_ref_tokens(
         packed_noisy, img_ids, ref_tokens, ref_ids
     )
@@ -185,9 +173,7 @@ def prepare_klein_dpo_batch(
             pipeline, vae, reference_images, weight_dtype
         )
 
-    win_sample, lose_sample = paired_flow_samples(
-        win_latents, lose_latents, sigmas=sigmas
-    )
+    win_sample, lose_sample = paired_flow_samples(win_latents, lose_latents, sigmas=sigmas)
     packed_noisy = torch.cat(
         [
             pipeline._pack_latents(win_sample.noisy_latents),
@@ -195,14 +181,8 @@ def prepare_klein_dpo_batch(
         ],
         dim=0,
     )
-    img_ids = (
-        pipeline._prepare_latent_ids(win_latents)
-        .to(device=win_images.device)
-        .repeat(2, 1, 1)
-    )
-    doubled_ref_tokens = (
-        ref_tokens.repeat(2, 1, 1) if ref_tokens is not None else None
-    )
+    img_ids = pipeline._prepare_latent_ids(win_latents).to(device=win_images.device).repeat(2, 1, 1)
+    doubled_ref_tokens = ref_tokens.repeat(2, 1, 1) if ref_tokens is not None else None
     doubled_ref_ids = ref_ids.repeat(2, 1, 1) if ref_ids is not None else None
     hidden_states, full_img_ids, token_count = _concat_klein_ref_tokens(
         packed_noisy, img_ids, doubled_ref_tokens, doubled_ref_ids
@@ -218,9 +198,7 @@ def prepare_klein_dpo_batch(
     return KleinDpoBatch(
         forward=forward,
         win_target_velocity=pipeline._pack_latents(win_sample.target_velocity).float(),
-        lose_target_velocity=pipeline._pack_latents(
-            lose_sample.target_velocity
-        ).float(),
+        lose_target_velocity=pipeline._pack_latents(lose_sample.target_velocity).float(),
         sigmas=win_sample.sigmas,
     )
 

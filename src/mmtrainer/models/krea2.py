@@ -67,9 +67,7 @@ def pad_text_features(
     batch_size = len(features)
     dim = features[0].shape[-1]
     padded = pad_token.view(1, 1, dim).expand(batch_size, max_len, dim).clone()
-    mask = torch.zeros(
-        batch_size, max_len, dtype=torch.bool, device=features[0].device
-    )
+    mask = torch.zeros(batch_size, max_len, dtype=torch.bool, device=features[0].device)
     for idx, feat in enumerate(features):
         seq_len = feat.shape[0]
         padded[idx, :seq_len] = feat
@@ -110,13 +108,9 @@ def pack_patch_tokens(latents: torch.Tensor, patch_size: int = 2) -> torch.Tenso
     batch_size, channels, height, width = latents.shape
     h_patches = height // patch_size
     w_patches = width // patch_size
-    reshaped = latents.view(
-        batch_size, channels, h_patches, patch_size, w_patches, patch_size
-    )
+    reshaped = latents.view(batch_size, channels, h_patches, patch_size, w_patches, patch_size)
     permuted = reshaped.permute(0, 2, 4, 1, 3, 5).contiguous()
-    return permuted.view(
-        batch_size, h_patches * w_patches, channels * patch_size * patch_size
-    )
+    return permuted.view(batch_size, h_patches * w_patches, channels * patch_size * patch_size)
 
 
 def prepare_krea2_tokens(
@@ -206,9 +200,7 @@ class SingleStreamDiT(nn.Module):
                 for _ in range(config.depth)
             ]
         )
-        self.final_norm = nn.LayerNorm(
-            config.hidden_size, elementwise_affine=False, eps=1e-6
-        )
+        self.final_norm = nn.LayerNorm(config.hidden_size, elementwise_affine=False, eps=1e-6)
         self.final_linear = nn.Linear(config.hidden_size, config.in_channels, bias=False)
 
     def forward(
@@ -263,9 +255,7 @@ def prepare_krea2_dpo_batch(
     sigmas: torch.Tensor | None = None,
     patch_size: int = 2,
 ) -> Krea2DpoBatch:
-    win_sample, lose_sample = paired_flow_samples(
-        win_latents, lose_latents, sigmas=sigmas
-    )
+    win_sample, lose_sample = paired_flow_samples(win_latents, lose_latents, sigmas=sigmas)
     win_tokens, token_count = prepare_krea2_tokens(
         win_sample.noisy_latents, cond_latents, patch_size=patch_size
     )
@@ -290,9 +280,7 @@ def prepare_krea2_dpo_batch(
     )
 
 
-def predict_krea2_velocity(
-    transformer: Any, batch: Krea2ForwardBatch
-) -> torch.Tensor:
+def predict_krea2_velocity(transformer: Any, batch: Krea2ForwardBatch) -> torch.Tensor:
     out = transformer(
         batch.img_tokens,
         batch.txt_tokens,

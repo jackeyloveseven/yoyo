@@ -23,9 +23,7 @@ def estimate_similarity_transform_5pt(
         raise ValueError(f"Expected src_pts shape (5, 2), got {tuple(src_pts.shape)}")
     src = src_pts.to(dtype=torch.float64)
     if dst_pts is None:
-        dst = torch.tensor(
-            ARCFACE_REFERENCE_LANDMARKS_112, device=src.device, dtype=torch.float64
-        )
+        dst = torch.tensor(ARCFACE_REFERENCE_LANDMARKS_112, device=src.device, dtype=torch.float64)
     else:
         dst = dst_pts.to(device=src.device, dtype=torch.float64)
     src_mean = src.mean(dim=0, keepdim=True)
@@ -59,16 +57,20 @@ def _pixel_affine_to_normalized_theta(
     m33[:2, :] = matrix_2x3.to(dtype=torch.float32)
     inv_m = torch.linalg.inv(m33)
     src_norm_to_pix = torch.tensor(
-        [[(src_w - 1) / 2.0, 0.0, (src_w - 1) / 2.0],
-         [0.0, (src_h - 1) / 2.0, (src_h - 1) / 2.0],
-         [0.0, 0.0, 1.0]],
+        [
+            [(src_w - 1) / 2.0, 0.0, (src_w - 1) / 2.0],
+            [0.0, (src_h - 1) / 2.0, (src_h - 1) / 2.0],
+            [0.0, 0.0, 1.0],
+        ],
         device=matrix_2x3.device,
         dtype=torch.float32,
     )
     dst_norm_to_pix = torch.tensor(
-        [[(dst_size - 1) / 2.0, 0.0, (dst_size - 1) / 2.0],
-         [0.0, (dst_size - 1) / 2.0, (dst_size - 1) / 2.0],
-         [0.0, 0.0, 1.0]],
+        [
+            [(dst_size - 1) / 2.0, 0.0, (dst_size - 1) / 2.0],
+            [0.0, (dst_size - 1) / 2.0, (dst_size - 1) / 2.0],
+            [0.0, 0.0, 1.0],
+        ],
         device=matrix_2x3.device,
         dtype=torch.float32,
     )
@@ -99,9 +101,7 @@ def align_face(
         size=[1, image.shape[1], out_size, out_size],
         align_corners=True,
     )
-    aligned = F.grid_sample(
-        image, grid, mode="bilinear", padding_mode="zeros", align_corners=True
-    )
+    aligned = F.grid_sample(image, grid, mode="bilinear", padding_mode="zeros", align_corners=True)
     return aligned.squeeze(0) if squeezed else aligned
 
 

@@ -37,23 +37,33 @@ def run_diffusionnft_demo(batch_size: int = 4) -> dict[str, Any]:
     clean_latents = torch.randn(batch_size, 8)
     noise = torch.randn_like(clean_latents)
     timesteps = torch.linspace(0.2, 0.8, batch_size)
-    rf_batch = make_rectified_flow_batch(
-        clean_latents, timesteps, noise=noise
-    )
+    rf_batch = make_rectified_flow_batch(clean_latents, timesteps, noise=noise)
 
     mock_vlm_outputs = [
-        '<think>good</think><answer>{"Instruction_Following": 5, "Consistency": 4, "Visual_Quality": 5}</answer>',
-        '<think>ok</think><answer>{"Instruction_Following": 3, "Consistency": 4, "Visual_Quality": 3}</answer>',
-        '<think>poor</think><answer>{"Instruction_Following": 2, "Consistency": 2, "Visual_Quality": 2}</answer>',
-        '<think>great</think><answer>{"Instruction_Following": 5, "Consistency": 5, "Visual_Quality": 4}</answer>',
+        (
+            "<think>good</think><answer>"
+            '{"Instruction_Following": 5, "Consistency": 4, "Visual_Quality": 5}</answer>'
+        ),
+        (
+            "<think>ok</think><answer>"
+            '{"Instruction_Following": 3, "Consistency": 4, "Visual_Quality": 3}</answer>'
+        ),
+        (
+            "<think>poor</think><answer>"
+            '{"Instruction_Following": 2, "Consistency": 2, "Visual_Quality": 2}</answer>'
+        ),
+        (
+            "<think>great</think><answer>"
+            '{"Instruction_Following": 5, "Consistency": 5, "Visual_Quality": 4}</answer>'
+        ),
     ]
     vlm_scores = torch.tensor(
         [parse_rational_rewards_scores(txt)["overall"] for txt in mock_vlm_outputs],
         dtype=torch.float32,
     ).view(2, 2)
-    optimality = reward_to_optimality(
-        vlm_scores, normalizer="group_std"
-    ).probabilities.reshape(batch_size)
+    optimality = reward_to_optimality(vlm_scores, normalizer="group_std").probabilities.reshape(
+        batch_size
+    )
 
     pred_v = policy_net(rf_batch.noisy)
     with torch.no_grad():

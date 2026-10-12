@@ -1,9 +1,9 @@
-"""Composable JSONL manifest datasets for T2I, single/multi-ref image editing, and preference DPO."""
+"""Composable JSONL manifest datasets for T2I, image editing, and preference DPO."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -40,9 +40,7 @@ def load_jsonl_rows(
 def normalized_image_transform(resolution: int) -> Callable[[Image.Image], Any]:
     return transforms.Compose(
         [
-            transforms.Resize(
-                resolution, interpolation=transforms.InterpolationMode.BILINEAR
-            ),
+            transforms.Resize(resolution, interpolation=transforms.InterpolationMode.BILINEAR),
             transforms.CenterCrop(resolution),
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5]),
@@ -96,7 +94,10 @@ class JsonlT2IDataset(Dataset[dict[str, Any]]):
 
 
 class JsonlEditDataset(Dataset[dict[str, Any]]):
-    """JSONL dataset for single- or multi-reference image editing (`prompt`, `input_image(s)`, `output_image`)."""
+    """JSONL dataset for single/multi-reference image editing.
+
+    Rows carry `prompt`, `input_image(s)`, and `output_image`.
+    """
 
     def __init__(
         self,
@@ -131,7 +132,10 @@ class JsonlEditDataset(Dataset[dict[str, Any]]):
 
 
 class JsonlEditPairDataset(Dataset[dict[str, Any]]):
-    """JSONL dataset for preference alignment / DPO (`prompt`, `input_image(s)`, `win_image`, `lose_image`)."""
+    """JSONL dataset for preference alignment / DPO.
+
+    Rows carry `prompt`, `input_image(s)`, `win_image`, and `lose_image`.
+    """
 
     def __init__(
         self,

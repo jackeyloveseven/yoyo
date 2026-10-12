@@ -78,7 +78,9 @@ class HiDreamAdapter(BaseModelAdapter):
     model_id = "hidream"
     default_lora_target_modules = SENSENOVA_LORA_TARGET_MODULES
 
-    def prepare_dpo_batch(self, **kwargs: Any) -> tuple[MultiStreamLatentBatch, MultiStreamLatentBatch]:
+    def prepare_dpo_batch(
+        self, **kwargs: Any
+    ) -> tuple[MultiStreamLatentBatch, MultiStreamLatentBatch]:
         win_sample, lose_sample = paired_flow_samples(
             kwargs["win_latents"],
             kwargs["lose_latents"],

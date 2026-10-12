@@ -52,9 +52,7 @@ def run_flow_grpo_and_opsd_demo(batch_size: int = 2, group_size: int = 2) -> dic
             sigma_max=0.99,
         )
         next_sample = old_dist.mean + 0.1 * torch.randn_like(old_dist.mean)
-        old_lp = isotropic_gaussian_log_prob(
-            next_sample, old_dist.mean, old_dist.std
-        )
+        old_lp = isotropic_gaussian_log_prob(next_sample, old_dist.mean, old_dist.std)
 
     rewards = torch.tensor([[0.9, 0.2], [0.8, 0.4]])
     adv = group_relative_advantages(rewards).advantages
@@ -68,12 +66,8 @@ def run_flow_grpo_and_opsd_demo(batch_size: int = 2, group_size: int = 2) -> dic
         noise_level=0.7,
         sigma_max=0.99,
     )
-    new_lp = isotropic_gaussian_log_prob(
-        next_sample, curr_dist.mean, curr_dist.std
-    )
-    ref_kl = gaussian_mean_kl(
-        curr_dist.mean, old_dist.mean.detach(), curr_dist.std
-    )
+    new_lp = isotropic_gaussian_log_prob(next_sample, curr_dist.mean, curr_dist.std)
+    ref_kl = gaussian_mean_kl(curr_dist.mean, old_dist.mean.detach(), curr_dist.std)
 
     ppo_metrics = ppo_clipped_surrogate(
         PPOInputs(

@@ -101,9 +101,7 @@ class NativeLoRARouter(nn.Module):
             nn.SiLU(),
             nn.Linear(config.hidden_dim, config.hidden_dim),
         )
-        self.group_embedding = nn.Parameter(
-            torch.empty(config.num_groups, config.hidden_dim)
-        )
+        self.group_embedding = nn.Parameter(torch.empty(config.num_groups, config.hidden_dim))
         self.gate = nn.Sequential(
             nn.LayerNorm(config.hidden_dim),
             nn.Linear(config.hidden_dim, config.hidden_dim),
@@ -161,9 +159,7 @@ class NativeLoRARouter(nn.Module):
             (timestep, timestep.square(), torch.sin(angles), torch.cos(angles)), dim=-1
         )
 
-    def _pool_context(
-        self, context: torch.Tensor, text_mask: torch.Tensor | None
-    ) -> torch.Tensor:
+    def _pool_context(self, context: torch.Tensor, text_mask: torch.Tensor | None) -> torch.Tensor:
         if context.ndim == 4:
             context = context.mean(dim=2)
         if context.ndim != 3 or context.shape[-1] != self.config.context_dim:
@@ -174,9 +170,9 @@ class NativeLoRARouter(nn.Module):
         if text_mask is None:
             return context.mean(dim=1)
         mask = text_mask.to(device=context.device, dtype=context.dtype)
-        return (context * mask.unsqueeze(-1)).sum(dim=1) / mask.sum(
-            dim=1, keepdim=True
-        ).clamp_min(1.0)
+        return (context * mask.unsqueeze(-1)).sum(dim=1) / mask.sum(dim=1, keepdim=True).clamp_min(
+            1.0
+        )
 
     def forward(
         self,

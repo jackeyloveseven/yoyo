@@ -63,9 +63,7 @@ class NextGenFlowAdapter(BaseModelAdapter):
         self, transformer: Any, batch: dict[str, torch.Tensor], **kwargs: Any
     ) -> torch.Tensor:
         del kwargs
-        return transformer(
-            batch["noisy_latents"], batch["sigmas"], batch["cond"]
-        ).float()
+        return transformer(batch["noisy_latents"], batch["sigmas"], batch["cond"]).float()
 
 
 class NextGenFlowPlugin(CatalogModelPlugin):

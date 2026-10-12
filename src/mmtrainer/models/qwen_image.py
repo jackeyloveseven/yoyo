@@ -52,9 +52,7 @@ class QwenDpoBatch:
     sigmas: torch.Tensor
 
 
-def encode_vae_image(
-    vae: Any, images: torch.Tensor, weight_dtype: torch.dtype
-) -> torch.Tensor:
+def encode_vae_image(vae: Any, images: torch.Tensor, weight_dtype: torch.dtype) -> torch.Tensor:
     pixel_values = images.unsqueeze(2).to(dtype=weight_dtype)
     latents = vae.encode(pixel_values).latent_dist.sample()
     latents_mean = torch.tensor(
@@ -111,9 +109,7 @@ def prepare_qwen_sft_batch(
     packed_control = pack_qwen_latents(pipeline, control_latents)
     packed_target = pack_qwen_latents(pipeline, sample.target_velocity)
     hidden_states = torch.cat([packed_noisy, packed_control], dim=1)
-    img_shapes, txt_seq_lens = _qwen_shape_metadata(
-        target_latents, prompt_mask, num_streams=2
-    )
+    img_shapes, txt_seq_lens = _qwen_shape_metadata(target_latents, prompt_mask, num_streams=2)
     forward = QwenForwardBatch(
         hidden_states=hidden_states.to(dtype=weight_dtype),
         encoder_hidden_states=prompt_embeds.to(dtype=weight_dtype),
@@ -178,12 +174,8 @@ def prepare_qwen_dpo_batch(
     )
     return QwenDpoBatch(
         forward=forward,
-        win_target_velocity=pack_qwen_latents(
-            pipeline, win_sample.target_velocity
-        ).float(),
-        lose_target_velocity=pack_qwen_latents(
-            pipeline, lose_sample.target_velocity
-        ).float(),
+        win_target_velocity=pack_qwen_latents(pipeline, win_sample.target_velocity).float(),
+        lose_target_velocity=pack_qwen_latents(pipeline, lose_sample.target_velocity).float(),
         sigmas=win_sample.sigmas,
     )
 

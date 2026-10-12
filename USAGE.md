@@ -25,11 +25,16 @@ qualified launch.
 
 ## Execute one phase
 
+Every `phase run` must pass `--expected-sha256` with the canonical SHA-256 of the
+spec. `mmtrain plan validate` prints that hash as `spec_sha256`; the CLI re-checks
+it before running so the executed plan is byte-identical to the validated one.
+
 ```bash
-mmtrain phase run --spec /path/to/run-spec.json --phase preflight
-mmtrain phase run --spec /path/to/run-spec.json --phase train
-mmtrain phase run --spec /path/to/run-spec.json --phase evaluate
-mmtrain phase run --spec /path/to/run-spec.json --phase publish
+SHA=$(mmtrain plan validate --spec /path/to/run-spec.json | python3 -c "import sys,json;print(json.load(sys.stdin)['spec_sha256'])")
+mmtrain phase run --spec /path/to/run-spec.json --expected-sha256 "$SHA" --phase preflight
+mmtrain phase run --spec /path/to/run-spec.json --expected-sha256 "$SHA" --phase train
+mmtrain phase run --spec /path/to/run-spec.json --expected-sha256 "$SHA" --phase evaluate
+mmtrain phase run --spec /path/to/run-spec.json --expected-sha256 "$SHA" --phase publish
 ```
 
 Only `preflight`, `train`, `evaluate`, and `publish` are valid phases. The engine

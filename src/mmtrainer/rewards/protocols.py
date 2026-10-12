@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 import json
 import re
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 EDIT_DIMENSIONS: tuple[str, ...] = (
@@ -17,8 +17,8 @@ EDIT_DIMENSIONS: tuple[str, ...] = (
 RATIONAL_REWARDS_SYSTEM_PROMPT = (
     "You are an expert evaluator of image editing quality. "
     "Score the edited image from 1 to 5 on Instruction_Following, Consistency, and Visual_Quality. "
-    "Respond with <think>...</think><answer>{\"Instruction_Following\": int, "
-    "\"Consistency\": int, \"Visual_Quality\": int}</answer>."
+    'Respond with <think>...</think><answer>{"Instruction_Following": int, '
+    '"Consistency": int, "Visual_Quality": int}</answer>.'
 )
 
 _ANSWER_BLOCK_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL | re.IGNORECASE)
@@ -41,7 +41,10 @@ def build_edit_messages(
                 {"type": "image_url", "image_url": {"url": edited_image_url}},
                 {
                     "type": "text",
-                    "text": f"Editing instruction: {instruction}\nEvaluate the edited second image relative to the original first image.",
+                    "text": (
+                        f"Editing instruction: {instruction}\n"
+                        "Evaluate the edited second image relative to the original first image."
+                    ),
                 },
             ],
         },
@@ -74,9 +77,9 @@ def parse_rational_rewards_scores(
     total_w = sum(resolved_weights.get(dim, 0.0) for dim in EDIT_DIMENSIONS)
     if total_w <= 0:
         raise ValueError("Reward dimension weights must sum to a positive number")
-    weighted = sum(
-        scores[dim] * resolved_weights.get(dim, 0.0) for dim in EDIT_DIMENSIONS
-    ) / total_w
+    weighted = (
+        sum(scores[dim] * resolved_weights.get(dim, 0.0) for dim in EDIT_DIMENSIONS) / total_w
+    )
     scores["overall"] = float(weighted)
     return scores
 

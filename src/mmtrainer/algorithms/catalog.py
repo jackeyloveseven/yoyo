@@ -19,7 +19,9 @@ class DiffusionOPSDPlugin(CatalogObjectivePlugin):
     plugin_id = "diffusion_opsd"
     required_model_capabilities = frozenset({"diffusion_alignment"})
     reward_required = True
-    objective_import_path = "mmtrainer.algorithms.diffusion_opsd.objectives:diffusion_opsd_fitting_loss"
+    objective_import_path = (
+        "mmtrainer.algorithms.diffusion_opsd.objectives:diffusion_opsd_fitting_loss"
+    )
 
 
 class EditR1Plugin(CatalogObjectivePlugin):
@@ -32,7 +34,9 @@ class EditR1Plugin(CatalogObjectivePlugin):
 class FlowMimicOPSDPlugin(CatalogObjectivePlugin):
     plugin_id = "flowmimic_opsd"
     required_model_capabilities = frozenset({"diffusion_alignment"})
-    objective_import_path = "mmtrainer.algorithms.flowmimic_opsd.objectives:flowmimic_clean_distribution_loss"
+    objective_import_path = (
+        "mmtrainer.algorithms.flowmimic_opsd.objectives:flowmimic_clean_distribution_loss"
+    )
 
 
 class ImageSFTPlugin(CatalogObjectivePlugin):

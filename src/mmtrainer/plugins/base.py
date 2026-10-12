@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 import importlib
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from mmtrainer.config import ComponentSpec

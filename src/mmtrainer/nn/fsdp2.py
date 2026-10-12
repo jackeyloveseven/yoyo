@@ -34,7 +34,8 @@ def _validate_topology_inputs(
 ) -> int:
     if model_family not in MODEL_FAMILY_WRAP_CLASSES:
         raise ValueError(
-            f"unknown model family {model_family!r}; choose from {sorted(MODEL_FAMILY_WRAP_CLASSES)}"
+            f"unknown model family {model_family!r}; "
+            f"choose from {sorted(MODEL_FAMILY_WRAP_CLASSES)}"
         )
     if world_size not in SUPPORTED_WORLD_SIZES:
         raise ValueError(f"world_size must be one of {SUPPORTED_WORLD_SIZES}")
@@ -122,9 +123,7 @@ def require_fsdp2_fp32_parameters(
         raise RuntimeError(f"{trainer_name} has no trainable parameters")
     bad_dtypes = sorted({str(p.dtype) for p in trainable if p.dtype != torch.float32})
     if bad_dtypes:
-        raise RuntimeError(
-            f"{trainer_name} requires FP32 trainable parameters; found {bad_dtypes}"
-        )
+        raise RuntimeError(f"{trainer_name} requires FP32 trainable parameters; found {bad_dtypes}")
     return {
         "strategy": "fsdp2",
         "fsdp_version": 2,

@@ -80,11 +80,7 @@ def run_distill_demo(batch_size: int = 2) -> dict[str, Any]:
     aux_loss = moe_router.auxiliary_loss()
 
     total_loss = (
-        opd_res.loss
-        + 0.2 * dmd_res.loss
-        + 0.1 * ng_res.penalty
-        + 0.1 * repa_loss
-        + aux_loss
+        opd_res.loss + 0.2 * dmd_res.loss + 0.1 * ng_res.penalty + 0.1 * repa_loss + aux_loss
     )
     optimizer.zero_grad()
     total_loss.backward()

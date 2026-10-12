@@ -1,8 +1,8 @@
 # 🪀 YoYo — *You Only Yield Once*
 
-> **Composable Post-Training, Distillation & Reinforcement Learning Scaffold for Flow-Matching and Diffusion Models**
+> **一个用"搭积木"方式做扩散/流匹配模型后训练的工具箱。**
 >
-> *Write the mathematical primitives and model adapter once — yield any SFT, DPO, distillation, RL, or inference pipeline by composing components.*
+> SFT、DPO、蒸馏、强化学习，不用各写一套脚本——把同一批可复用的零件拼起来就行。
 
 [![CI & Architecture Gates](https://github.com/jackeyloveseven/yoyo/actions/workflows/ci.yml/badge.svg)](https://github.com/jackeyloveseven/yoyo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -10,46 +10,41 @@
 
 ---
 
-## Why YoYo?
+## 30 秒看懂 YoYo
 
-Most multimodal diffusion and flow-matching repositories devolve into sprawling, single-use training scripts where model conditioning, ODE solvers, FSDP2 wrappers, and objective math are copy-pasted across dozens of directories.
+训练一个扩散模型，传统做法是：为 SFT 写一套脚本，为 DPO 再抄一套，做 RL 又抄一套——模型加载、加噪、ODE 求解器、学习率、FSDP 的代码被复制粘贴得到处都是，改一处要改十处。
 
-**YoYo** takes the opposite approach:
-- **Pure Composable Primitives**: Every flow-matching sampler, ODE step, learning-rate schedule, sparse LoRA-MoE router, distillation regularizer, and RL surrogate lives in [`src/mmtrainer/`](src/mmtrainer) as an independent, unit-tested building block.
-- **25-Line Model Onboarding**: Any diffusion or rectified-flow architecture (FLUX.2-klein, Qwen-Image, Krea2 Single-Stream MMDiT, FireRed, SenseNova, HiDream, or your next custom backbone) plugs in by subclassing [`BaseModelAdapter`](src/mmtrainer/plugins/base.py).
-- **Zero-Bloat & Strict AST Gates**: Enforced automatically on every commit via [`check_v2_quality.py`](check_v2_quality.py), [`check_structure.py`](check_structure.py), and [`check_docs.py`](check_docs.py) — zero cross-model imports, zero 50-token code duplication, cyclomatic complexity $\le 15$, and zero eager GPU imports at CLI startup.
+YoYo 把这些**公共零件抽出来，各放一处，各自单测**：
 
----
+- 加噪、Euler/DPM2 求解器、学习率表、LoRA-MoE、FSDP2 → 在 [`src/mmtrainer/nn/`](src/mmtrainer/nn/)，纯函数，不碰任何具体模型。
+- 损失函数（SFT / DPO / 蒸馏 / GRPO / NFT / OPSD）→ 在 [`src/mmtrainer/algorithms/`](src/mmtrainer/algorithms/)，只做数学，不 import 模型。
+- 每个模型（Klein、Qwen-Image、Krea2、FireRed、SenseNova、HiDream）→ 只写一个适配器，把"我的张量长什么样"翻译成公共接口。
 
-## Architecture & Component Map
-
-```text
-yoyo/
-├── src/mmtrainer/
-│   ├── nn/                  # Flow interpolation, Euler/DPM2 ODE steps, WSD/Cosine schedules, FSDP2, Sparse LoRA-MoE
-│   ├── models/              # Composable adapters (Klein, Qwen-Image, Krea2 MMDiT, FireRed, SenseNova, HiDream)
-│   ├── algorithms/
-│   │   ├── sft_dpo/         # Flow SFT, Coupled-Noise DPO, OPD, DMD2, GT-Reg, NormGuard, REPA
-│   │   ├── diffusion_alignment/ # DiffusionNFT, Asymmetric DPO, EMA policy updates
-│   │   ├── flow_grpo/       # SDE transitions with log-prob, Group Relative Advantages, Clipped PPO + Reference KL
-│   │   ├── diffusion_opsd/  # On-Policy Self-Distillation (bounded trust-region reward targets)
-│   │   ├── flowmimic_opsd/  # Clean-distribution matching OPSD
-│   │   └── edit_r1/         # MLLM-guided Edit-R1 optimality shaping
-│   ├── datasets/            # JSONL manifests for T2I, single/multi-reference editing, and preference pairs
-│   ├── rewards/             # 5-point differentiable ArcFace identity loss & RationalRewards VLM parser
-│   ├── engine/              # Phase lifecycle (preflight -> train -> evaluate -> publish)
-│   ├── registry/            # Deterministic lazy plugin registry
-│   └── runtime/             # Atomic SHA-256 checkpoint manifests & compact BF16 parameter state
-├── examples/                # 6 self-contained scripts composing components for SFT, DPO, Distill, RL & Inference
-├── docs/                    # Algorithm derivations, ADRs, and numerical characterizations
-└── tests/v2/                # 50+ unit and integration tests covering all components and examples
-```
+**想换一种训练方式？换零件，不换整套脚本。** 想接入一个新模型？写 25 行适配器，就能用全部现成的损失函数和求解器。
 
 ---
 
-## Quickstart
+## 和 AI-Toolkit 比，区别在哪
 
-### 1. Installation
+[ostris/ai-toolkit](https://github.com/ostris/ai-toolkit) 是目前最流行的扩散模型微调工具，很多人用它训 FLUX/SD 的 LoRA。两者目标不同，不是替代关系：
+
+| 维度 | AI-Toolkit | YoYo |
+| :--- | :--- | :--- |
+| **主打场景** | 单模型 LoRA / 全量微调，开箱即用 | 多模型、多算法（SFT/DPO/蒸馏/RL）的研究与生产 |
+| **组织方式** | YAML 配置驱动的单体 trainer | 注册表 + 适配器 + 纯函数零件，自由拼装 |
+| **加新算法** | 改 trainer 内部代码 | 写一个 loss 函数丢进 `algorithms/`，注册一行 |
+| **加新模型** | 等官方支持或改模型专用代码 | 写 25 行 `BaseModelAdapter`，立刻用全部算法 |
+| **RL / DPO / 蒸馏** | 以 SFT 类微调为主 | 一等公民，内置 6 套算法原语 |
+| **图形界面** | 有 Web UI，点点鼠标就能训 | 无 UI，面向写代码的研究者 |
+| **质量保障** | 社区驱动、迭代快 | 每次提交强制过 AST 门 + 50+ 单测 + 文档链接检查 |
+
+**一句话**：想快速给 FLUX 训个 LoRA、不想碰代码——用 AI-Toolkit 更顺手。想在多个模型上系统地做后训练、蒸馏、RL 研究，且要求代码可测、可复用、不重复——YoYo 更合适。
+
+---
+
+## 5 分钟跑通
+
+### 1. 安装
 
 ```bash
 git clone https://github.com/jackeyloveseven/yoyo.git
@@ -57,42 +52,42 @@ cd yoyo
 python3 -m pip install -e ".[test,checkpoint]"
 ```
 
-### 2. Inspect Registered Plugins & Validate Recipes
+### 2. 看看注册了哪些零件
 
 ```bash
-mmtrain registry list
+mmtrain registry list        # 列出所有模型 / 算法 / 数据集 / 奖励插件
 mmtrain plan validate --spec recipes/v2/firered_diffusionnft.json
 ```
 
-### 3. Run Composable Training & RL Examples
+### 3. 跑一个完整示例（CPU 也能跑）
 
-Every script in [`examples/`](examples/README.md) runs out-of-the-box on CPU or GPU to verify the full forward/backward component pipeline:
+[`examples/`](examples/README.md) 里每个脚本都是自包含的，验证从模型到损失的整条链路：
 
 ```bash
-# 1. Supervised Flow-Matching SFT (Krea2 SingleStreamDiT + Cosine LR)
+# ① 流匹配 SFT（Krea2 单流 DiT + 余弦学习率）
 PYTHONPATH=src:. python3 examples/train_sft_edit.py
 
-# 2. Coupled-Noise Flow-DPO Preference Alignment
+# ② 耦合噪声 Flow-DPO 偏好对齐
 PYTHONPATH=src:. python3 examples/train_dpo_preference.py
 
-# 3. Multi-Objective Distillation (OPD + DMD2 + NormGuard + REPA + Sparse LoRA-MoE)
+# ③ 多目标蒸馏（OPD + DMD2 + NormGuard + REPA + 稀疏 LoRA-MoE）
 PYTHONPATH=src:. python3 examples/train_distill_opd_dmd.py
 
-# 4. Online RL with DiffusionNFT + VLM Multi-Dimensional & Identity Rewards
+# ④ 在线 RL：DiffusionNFT + VLM 多维 & 身份奖励
 PYTHONPATH=src:. python3 examples/train_rl_diffusionnft.py
 
-# 5. Trajectory RL with Flow-GRPO & DiffusionOPSD
+# ⑤ 轨迹 RL：Flow-GRPO + DiffusionOPSD
 PYTHONPATH=src:. python3 examples/train_rl_flow_grpo.py
 
-# 6. Plugging in a Brand-New Model Architecture + Euler/DPM2 Rollout Inference
+# ⑥ 接入一个全新模型架构 + Euler/DPM2 推理
 PYTHONPATH=src:. python3 examples/custom_model_and_infer.py
 ```
 
 ---
 
-## Plugging In a New Model Architecture
+## 接入一个新模型，只要这些
 
-To integrate a new flow or diffusion model, subclass [`BaseModelAdapter`](src/mmtrainer/plugins/base.py) and combine it with any objective in `mmtrainer.algorithms`:
+继承 [`BaseModelAdapter`](src/mmtrainer/plugins/base.py)，实现三个方法——怎么准备 SFT 批次、怎么准备 DPO 批次、怎么预测速度场——就能调用 `algorithms/` 里的所有损失函数和 `nn/` 里的所有求解器：
 
 ```python
 import torch
@@ -117,26 +112,41 @@ class MyCustomAdapter(BaseModelAdapter):
         return transformer(batch["noisy"], batch["sigmas"], batch["cond"]).float()
 ```
 
-See [`examples/custom_model_and_infer.py`](examples/custom_model_and_infer.py) for a complete runnable demonstration including dynamic [`LazyRegistry`](src/mmtrainer/registry/core.py) registration and hybrid Euler/DPM2 rollout sampling.
+完整可运行示例（含动态注册进 [`LazyRegistry`](src/mmtrainer/registry/core.py)、Euler/DPM2 混合采样）见 [`examples/custom_model_and_infer.py`](examples/custom_model_and_infer.py)。
 
 ---
 
-## Documentation & Verification Gates
+## 零件清单
 
-| Guide | Path |
+| 层 | 模块 | 提供了什么 |
+| :--- | :--- | :--- |
+| **流 & 神经网络** | [`mmtrainer.nn`](src/mmtrainer/nn/) | 流插值、Euler/DPM2 求解器、WSD/余弦学习率、FSDP2、稀疏 LoRA-MoE |
+| **模型适配器** | [`mmtrainer.models`](src/mmtrainer/models/catalog.py) | Klein、Qwen-Image、Krea2、FireRed、SenseNova、HiDream |
+| **SFT/DPO/蒸馏** | [`mmtrainer.algorithms.sft_dpo`](src/mmtrainer/algorithms/sft_dpo/) | Flow SFT、耦合噪声 DPO、OPD、DMD2、GT-Reg、NormGuard、REPA |
+| **在线 RL** | [`mmtrainer.algorithms`](src/mmtrainer/algorithms/catalog.py) | DiffusionNFT、非对称 DPO、Flow-GRPO、DiffusionOPSD、FlowMimic-OPSD、Edit-R1 |
+| **数据集** | [`mmtrainer.datasets`](src/mmtrainer/datasets/manifest.py) | T2I、单/多参考编辑、偏好对的 JSONL 清单加载 |
+| **奖励** | [`mmtrainer.rewards`](src/mmtrainer/rewards/) | 5 点可微 ArcFace 身份损失、RationalRewards VLM 解析 |
+| **运行时** | [`mmtrainer.runtime`](src/mmtrainer/runtime/checkpoints.py) | 原子 SHA-256 checkpoint 清单、紧凑 BF16 参数状态 |
+
+---
+
+## 文档与质量门
+
+| 指南 | 路径 |
 | :--- | :--- |
-| CLI & Lifecycle Usage | [`USAGE.md`](USAGE.md) |
-| Layered Architecture & Dependency Rules | [`ARCHITECTURE_V2.md`](ARCHITECTURE_V2.md) |
-| Contribution & Code Quality Standards | [`CONTRIBUTING_V2.md`](CONTRIBUTING_V2.md) |
-| Composable Examples Index | [`examples/README.md`](examples/README.md) |
-| Mathematical & Algorithm Specifications | [`docs/algorithms/README.md`](docs/algorithms/README.md) |
-| Refactoring & Component Extraction Notes | [`REFACTORING_HANDOFF.md`](REFACTORING_HANDOFF.md) |
+| CLI 与生命周期用法 | [`USAGE.md`](USAGE.md) |
+| 分层架构与依赖规则 | [`ARCHITECTURE_V2.md`](ARCHITECTURE_V2.md) |
+| 贡献与代码质量标准 | [`CONTRIBUTING_V2.md`](CONTRIBUTING_V2.md) |
+| 可组合示例索引 | [`examples/README.md`](examples/README.md) |
+| 数学与算法约定 | [`docs/algorithms/README.md`](docs/algorithms/README.md) |
+| 重构与零件抽取记录 | [`REFACTORING_HANDOFF.md`](REFACTORING_HANDOFF.md) |
 
-Run all verification gates locally before opening a pull request:
+提交前在本地跑一遍所有质量门：
 
 ```bash
-PYTHONPATH=src python3 check_v2_quality.py
-python3 check_structure.py
-python3 check_docs.py
-PYTHONPATH=src:. pytest tests/v2 -q
+PYTHONPATH=src python3 -m ruff check src/ tests/ examples/   # 代码风格
+PYTHONPATH=src python3 check_v2_quality.py                    # AST 架构门（行数/复杂度/去重）
+python3 check_structure.py                                    # 目录结构门
+python3 check_docs.py                                         # 文档链接/重复/行数门
+PYTHONPATH=src:. pytest tests/v2 -q                           # 50+ 单元与集成测试
 ```

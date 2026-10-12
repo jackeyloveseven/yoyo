@@ -71,13 +71,9 @@ def flow_sft_loss(
     return (errors * weights).mean()
 
 
-def _broadcast_time(
-    time: torch.Tensor, reference: torch.Tensor, *, name: str
-) -> torch.Tensor:
+def _broadcast_time(time: torch.Tensor, reference: torch.Tensor, *, name: str) -> torch.Tensor:
     if time.ndim != 1 or time.shape[0] != reference.shape[0]:
-        raise ValueError(
-            f"{name} must have shape ({reference.shape[0]},), got {tuple(time.shape)}"
-        )
+        raise ValueError(f"{name} must have shape ({reference.shape[0]},), got {tuple(time.shape)}")
     return time.to(device=reference.device, dtype=reference.dtype).view(
         reference.shape[0], *([1] * (reference.ndim - 1))
     )
@@ -91,10 +87,7 @@ def flow_opd_ode_loss(
     delta_t: torch.Tensor,
 ) -> FlowDistillationLoss:
     """DiffusionOPD one-step deterministic transition matching loss."""
-    if (
-        latents.shape != student_velocity.shape
-        or latents.shape != teacher_velocity.shape
-    ):
+    if latents.shape != student_velocity.shape or latents.shape != teacher_velocity.shape:
         raise ValueError("OPD latent/student/teacher shapes must match")
     expanded_delta = _broadcast_time(delta_t, latents, name="delta_t")
     student_mean = latents + expanded_delta * student_velocity
@@ -130,10 +123,13 @@ def flow_dpo_loss(
     r_rejected = per_sample_mse(reference_rejected, rejected_target)
     logits = -0.5 * beta * ((p_chosen - r_chosen) - (p_rejected - r_rejected))
     dpo = -F.logsigmoid(logits).mean()
-    ref_mse = 0.5 * (
-        per_sample_mse(policy_chosen, reference_chosen)
-        + per_sample_mse(policy_rejected, reference_rejected)
-    ).mean()
+    ref_mse = (
+        0.5
+        * (
+            per_sample_mse(policy_chosen, reference_chosen)
+            + per_sample_mse(policy_rejected, reference_rejected)
+        ).mean()
+    )
     sft_anchor = p_chosen.mean()
     total = dpo + sft_anchor_weight * sft_anchor
     return FlowDpoLoss(

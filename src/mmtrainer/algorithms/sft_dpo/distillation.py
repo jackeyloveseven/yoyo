@@ -35,7 +35,8 @@ def norm_guard_loss(
     """Compute NormGuard (arXiv:2606.27771) relative velocity-norm hinge penalty."""
     if student_velocity.shape != reference_velocity.shape:
         raise ValueError(
-            f"velocity shape mismatch: {tuple(student_velocity.shape)} != {tuple(reference_velocity.shape)}"
+            f"velocity shape mismatch: "
+            f"{tuple(student_velocity.shape)} != {tuple(reference_velocity.shape)}"
         )
     if student_velocity.ndim < 2:
         raise ValueError("velocities must include batch and feature dimensions")
@@ -64,7 +65,7 @@ def dmd_distribution_matching_loss(
     """Compute DMD2 distribution matching loss in clean-latent ``x0`` space."""
     if x0_generated.shape != x0_real.shape or x0_generated.shape != x0_fake.shape:
         raise ValueError("x0_generated, x0_real, and x0_fake must have identical shapes")
-    grad = (x0_fake.detach().float() - x0_real.detach().float())
+    grad = x0_fake.detach().float() - x0_real.detach().float()
     if global_norm:
         scale = grad.abs().mean().clamp_min(eps)
     else:
@@ -144,7 +145,8 @@ def repa_cosine_alignment_loss(
     """Compute REPA negative cosine similarity loss between aligned token grids."""
     if projected_hidden.shape != encoder_tokens.shape:
         raise ValueError(
-            f"REPA token shape mismatch: {tuple(projected_hidden.shape)} != {tuple(encoder_tokens.shape)}"
+            f"REPA token shape mismatch: "
+            f"{tuple(projected_hidden.shape)} != {tuple(encoder_tokens.shape)}"
         )
     proj_norm = F.normalize(projected_hidden.float(), dim=-1)
     enc_norm = F.normalize(encoder_tokens.detach().float(), dim=-1)

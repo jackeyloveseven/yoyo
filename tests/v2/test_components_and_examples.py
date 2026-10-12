@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PIL import Image
 import torch
+from PIL import Image
 
 from check_structure import audit_training_code
 from examples.custom_model_and_infer import run_custom_model_and_infer_demo
@@ -90,9 +90,7 @@ def test_nn_flow_schedules_fsdp2_and_lora_moe() -> None:
     assert torch.allclose(win_s.sigmas, lose_s.sigmas)
 
     stepped_euler = euler_flow_step(clean, sample.target_velocity, 0.8, 0.6)
-    stepped_dpm2 = dpm2_flow_step(
-        clean, sample.target_velocity, sample.target_velocity, 0.8, 0.6
-    )
+    stepped_dpm2 = dpm2_flow_step(clean, sample.target_velocity, sample.target_velocity, 0.8, 0.6)
     assert torch.allclose(stepped_euler, stepped_dpm2)
 
     assert len(resolution_shifted_timesteps(1024, 8)) == 9
@@ -155,10 +153,7 @@ def test_sft_dpo_and_distillation_objectives() -> None:
     assert dmd_out.loss.ndim == 0
     assert dmd_fake_score_loss(pred, target, torch.randn_like(target)).ndim == 0
     assert (
-        gt_regression_loss(
-            pred, target, target + 0.1, torch.tensor([0.5, 0.5]), target
-        ).ndim
-        == 0
+        gt_regression_loss(pred, target, target + 0.1, torch.tensor([0.5, 0.5]), target).ndim == 0
     )
 
     proj = RepaProjector(dit_hidden_size=8, encoder_dim=12, hidden_dim=16)
@@ -188,9 +183,7 @@ def test_model_adapters_and_registry_wiring() -> None:
     interleaved = interleave_candidates([torch.zeros(2, 4), torch.ones(2, 4)])
     assert interleaved.shape == (4, 4)
 
-    padded, mask = pad_text_features(
-        [torch.ones(3, 4), torch.ones(5, 4)], torch.zeros(4), pad_to=6
-    )
+    padded, mask = pad_text_features([torch.ones(3, 4), torch.ones(5, 4)], torch.zeros(4), pad_to=6)
     assert padded.shape == (2, 6, 4) and mask.shape == (2, 6)
     assert (
         diffusers_to_native_key("single_transformer_blocks.0.attn.to_qkv_mlp_proj.weight")
@@ -198,9 +191,7 @@ def test_model_adapters_and_registry_wiring() -> None:
     )
 
     krea_dit = SingleStreamDiT(
-        SingleMMDiTConfig(
-            in_channels=16, hidden_size=32, num_heads=4, depth=1, context_in_dim=12
-        )
+        SingleMMDiTConfig(in_channels=16, hidden_size=32, num_heads=4, depth=1, context_in_dim=12)
     )
     krea_adapter = Krea2Adapter()
     krea_batch = krea_adapter.prepare_sft_batch(
@@ -229,7 +220,8 @@ def test_model_adapters_and_registry_wiring() -> None:
 
 
 def test_datasets_and_rewards(tmp_path: Path) -> None:
-    for name, color in (("in.png", (255, 0, 0)), ("out.png", (0, 255, 0)), ("lose.png", (0, 0, 255))):
+    images = (("in.png", (255, 0, 0)), ("out.png", (0, 255, 0)), ("lose.png", (0, 0, 255)))
+    for name, color in images:
         Image.new("RGB", (64, 64), color=color).save(tmp_path / name)
 
     jsonl = tmp_path / "data.jsonl"
@@ -266,11 +258,14 @@ def test_datasets_and_rewards(tmp_path: Path) -> None:
     assert face_img.grad is not None
 
     msgs = build_edit_messages(
-        "add glasses", source_image_url="data:image/png;base64,AAA", edited_image_url="data:image/png;base64,BBB"
+        "add glasses",
+        source_image_url="data:image/png;base64,AAA",
+        edited_image_url="data:image/png;base64,BBB",
     )
     assert len(msgs) == 2
     scores = parse_rational_rewards_scores(
-        '<think>good</think><answer>{"Instruction_Following": 5, "Consistency": 3, "Visual_Quality": 5}</answer>'
+        "<think>good</think><answer>"
+        '{"Instruction_Following": 5, "Consistency": 3, "Visual_Quality": 5}</answer>'
     )
     assert 0.0 <= scores["overall"] <= 1.0
     scorer = CallableRewardScorer(fn=lambda items: [1.0 for _ in items])

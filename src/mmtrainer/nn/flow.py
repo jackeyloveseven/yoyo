@@ -35,9 +35,7 @@ def flow_sample(
     """Construct ``x_t = (1 - t) * x_0 + t * noise`` and ``v = noise - x_0``."""
     resolved_time = time if time is not None else sigmas
     if resolved_time is None:
-        resolved_time = torch.rand(
-            clean.shape[0], device=clean.device, dtype=torch.float32
-        )
+        resolved_time = torch.rand(clean.shape[0], device=clean.device, dtype=torch.float32)
     if noise is None:
         noise = torch.randn_like(clean)
     if clean.shape != noise.shape:
@@ -48,11 +46,12 @@ def flow_sample(
         raise ValueError("flow latents must include batch and feature dimensions")
     if resolved_time.ndim != 1 or resolved_time.shape[0] != clean.shape[0]:
         raise ValueError(
-            f"time must have shape (batch,), got {tuple(resolved_time.shape)} for batch={clean.shape[0]}"
+            f"time must have shape (batch,), "
+            f"got {tuple(resolved_time.shape)} for batch={clean.shape[0]}"
         )
-    expanded_time = resolved_time.view(
-        clean.shape[0], *([1] * (clean.ndim - 1))
-    ).to(device=clean.device, dtype=clean.dtype)
+    expanded_time = resolved_time.view(clean.shape[0], *([1] * (clean.ndim - 1))).to(
+        device=clean.device, dtype=clean.dtype
+    )
     return FlowSample(
         noisy=(1.0 - expanded_time) * clean + expanded_time * noise,
         target=noise - clean,
@@ -75,9 +74,7 @@ def paired_flow_samples(
         )
     resolved_time = time if time is not None else sigmas
     if resolved_time is None:
-        resolved_time = torch.rand(
-            chosen.shape[0], device=chosen.device, dtype=torch.float32
-        )
+        resolved_time = torch.rand(chosen.shape[0], device=chosen.device, dtype=torch.float32)
     if noise is None:
         noise = torch.randn_like(chosen)
     return (
