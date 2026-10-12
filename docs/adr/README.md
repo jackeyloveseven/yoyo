@@ -11,3 +11,14 @@ short numbered filename such as `0001-objective-plugin-lifecycle.md` and include
 
 An ADR is not a status report or implementation diary. Update the stable contract
 after the decision lands and keep mutable rollout evidence in receipts.
+
+## 已立档决策
+
+| ADR | 决策 | 状态 |
+| :--- | :--- | :--- |
+| [0001](0001-lazy-registry-pure-parts.md) | 懒注册表 + 纯函数零件作为 v2 架构基石 | 已接受 |
+| [0002](0002-architecture-and-lint-gates.md) | 以质量门(architecture + ruff)强制架构与风格 | 已接受 |
+| [0003](0003-absorb-ideas-not-frameworks.md) | 上游吸收"想法和技巧",不抄框架(含 Miles 判例) | 已接受 |
+| [0004](0004-compose-blueprint-not-runspec.md) | `mmtrain compose` 产出蓝图而非可 launch 的 RunSpec | 已接受 |
+
+更早的构建与决策叙述见 [`../BUILDING.md`](../BUILDING.md)。
