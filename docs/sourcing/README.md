@@ -28,11 +28,11 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 | 上游 | 我们关注它什么 | 最近一次核查 |
 | :--- | :--- | :--- |
 | [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 待核查 |
-| [Musubi Tuner](https://github.com/kohya-ss/musubi-tuner) | kohya 系视频模型 LoRA、显存优化 | 待核查 |
+| [Musubi Tuner](https://github.com/kohya-ss/musubi-tuner) | 视频模型 LoRA(HunyuanVideo/Wan2.x/FramePack/MiniMax-H3)、文本编码器缓存的坑 | 已核查 2026-10-12,记教训不吸收(见下) |
 | [SimpleTuner](https://github.com/bghira/SimpleTuner) | **新方法导入的边界与测试范式**(见下) | 待核查 |
 | [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 待核查 |
 | [vLLM](https://github.com/vllm-project/vllm) | PagedAttention、连续批处理(供 rollout 加速参考) | 待核查 |
-| [Diffusers](https://github.com/huggingface/diffusers) | 求解器/调度器官方实现、模型 IO 契约 | 待核查 |
+| [Diffusers](https://github.com/huggingface/diffusers) | 求解器/调度器官方实现、模型 IO 契约 | 已核查 2026-10-12,求解器无缺口;**LCM 少步蒸馏为候选**(见下) |
 | [AI-Toolkit](https://github.com/ostris/ai-toolkit) | 微调 UX、D-OPSD 自蒸馏分支、扩展注册表 | 部分(见根 README 对比) |
 | [Miles](https://github.com/radixark/miles) / [miles_diffusion](https://github.com/radixark/miles_diffusion) | 扩散 RL 的异步吞吐、LoRA IPC 权重同步 | 已核查 2026-10-12,暂不吸收(见下) |
 
@@ -50,6 +50,29 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 - **未来可重看**:若日后做"训练-采样分离",可借鉴"异步 rollout 想法"(轻量版:
   CUDA stream / producer-consumer 重叠采样与反向)与"LoRA 只传 A/B 对想法"。届时按
   [`intake-sop.md`](intake-sop.md) 评估。
+
+### Diffusers 核查结论(2026-10-12,求解器无缺口;LCM 为候选新方法)
+
+- **求解器/调度器**:diffusers 的 flow-match 系列(Euler/Heun)与我们 `nn/flow.py`
+  的 `euler_flow_step`/`dpm2_flow_step` 同为标准 1/2 阶求解器,功能重叠,**无本质缺口**。
+  我们还有 diffusers 没有的 `resolution_shifted_timesteps`(分辨率位移时间步,FLUX 系)。
+- **发现的算法空白:LCM(Latent Consistency)少步蒸馏**。我们现有蒸馏为 DMD 系
+  (`dmd_*`)与 TDM 系(`trajectory_distillation/`),**没有一致性模型(LCM)路径**。
+  这正是"少步蒸馏新方法"的方向。**决策:记入候选,不立即导入**——待明确要做少步
+  蒸馏时,按 [`intake-sop.md`](intake-sop.md) 评估 LCM/一致性蒸馏为一个新
+  `algorithms/` 零件(纯函数一致性损失 + 配套求解器),而非 vendor diffusers 的
+  `scheduling_flow_match_lcm`。
+
+### Musubi Tuner 核查结论(2026-10-12,记教训不吸收)
+
+- **模型覆盖**:Musubi 支持视频模型(HunyuanVideo、Wan2.1/2.2、FramePack、
+  MiniMax-H3 视频+音频),而我们 6 个已注册模型**全是图像**。视频是路线空白,
+  但接入视频模型是大工程(新适配器 + 时序维度),非"吸收一个零件"能解决,留作路线议题。
+- **可借鉴的教训(非代码)**:其 changelog 反复暴露**文本编码器缓存的坑**——
+  transformers 5.x 改变 T5/CLIP 行为致缓存漂移;T5-XXL 误留训练模式使缓存带噪;
+  Ideogram 4 旋转嵌入未初始化产生 NaN。**对我们的启示**:若我们日后做文本编码器
+  输出缓存/预计算,必须固定 encoder 为 eval 模式、校验嵌入初始化、并按库版本对
+  缓存做一致性核查。这是一条可写进未来"缓存零件"测试要求的经验,无需现在动代码。
 
 > 每次核查后,把日期、上游 commit、和"本次值得吸收的亮点"更新到对应行,形成
 > 可追溯的 receipt,而不是一句"最近看过"。
