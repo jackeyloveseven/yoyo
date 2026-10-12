@@ -1,8 +1,8 @@
-# 🪀 YoYo — *You Only Y___ Once*
+# 🪀 YoYo — *You Only Yield Once*
 
 > **Composable Post-Training, Distillation & Reinforcement Learning Scaffold for Flow-Matching and Diffusion Models**
 >
-> *(Working acronym: **You Only Yield Once** / **You Only Yoke Once** — write the math & adapter once, compose any training, RL, or inference pipeline at will.)*
+> *Write the mathematical primitives and model adapter once — yield any SFT, DPO, distillation, RL, or inference pipeline by composing components.*
 
 [![CI & Architecture Gates](https://github.com/jackeyloveseven/yoyo/actions/workflows/ci.yml/badge.svg)](https://github.com/jackeyloveseven/yoyo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
