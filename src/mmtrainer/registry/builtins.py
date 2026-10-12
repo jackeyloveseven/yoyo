@@ -66,6 +66,7 @@ def build_builtin_registries() -> RegistrySet:
         ("image_sft", "ImageSFTPlugin", {"image_training"}, False),
         ("image_dpo", "ImageDPOPlugin", {"image_training"}, False),
         ("image_opd", "ImageOPDPlugin", {"image_training"}, True),
+        ("latent_consistency", "LatentConsistencyPlugin", {"image_training"}, False),
     )
     for plugin_id, class_name, required, reward_required in objective_rows:
         objectives.register(

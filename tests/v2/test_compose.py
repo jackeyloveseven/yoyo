@@ -26,7 +26,7 @@ def test_compatible_objectives_respects_capabilities(registries) -> None:
     assert "image_sft" in krea2 and "flow_grpo" in krea2
     # klein lacks diffusion_alignment -> only the image_* family.
     klein = compatible_objectives(registries, "klein")
-    assert set(klein) == {"image_sft", "image_dpo", "image_opd"}
+    assert set(klein) == {"image_sft", "image_dpo", "image_opd", "latent_consistency"}
 
 
 def test_reward_requirement_and_filtering(registries) -> None:

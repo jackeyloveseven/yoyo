@@ -138,6 +138,19 @@ OBJECTIVE_GUIDANCE: dict[str, ObjectiveGuidance] = {
             "奖励曲线 + 端点误差曲线",
         ),
     ),
+    "latent_consistency": ObjectiveGuidance(
+        summary="LCM 少步蒸馏:相邻 ODE 步的自举一致性,把任意 t 的加噪样本一步映射回 x0。",
+        metrics=(
+            "total_loss(一致性总损失)",
+            "consistency_rms(学生/目标干净样本差的 RMS)",
+            "raw_huber(未加权的逐样本一致性误差)",
+        ),
+        visualizations=(
+            "学生一步采样 vs 教师多步采样对比网格",
+            "consistency_rms 曲线(应随训练单调下降)",
+        ),
+        notes=("无需 reward,也不需要独立 fake-score 网络;目标网络由调用方以 EMA 维护并 detach。",),
+    ),
 }
 
 # reward 插件 → 它实际产出的指标。

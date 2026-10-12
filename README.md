@@ -136,6 +136,7 @@ class MyCustomAdapter(BaseModelAdapter):
 | **流 & 神经网络** | [`mmtrainer.nn`](src/mmtrainer/nn/) | 流插值、Euler/DPM2 求解器、WSD/余弦学习率、FSDP2、稀疏 LoRA-MoE |
 | **模型适配器** | [`mmtrainer.models`](src/mmtrainer/models/catalog.py) | Klein、Qwen-Image、Krea2、FireRed、SenseNova、HiDream |
 | **SFT/DPO/蒸馏** | [`mmtrainer.algorithms.sft_dpo`](src/mmtrainer/algorithms/sft_dpo/) | Flow SFT、耦合噪声 DPO、OPD、DMD2、GT-Reg、NormGuard、REPA |
+| **少步蒸馏** | [`mmtrainer.algorithms.latent_consistency`](src/mmtrainer/algorithms/latent_consistency/) | LCM 一致性自举损失(相邻 ODE 步,无需教师多步 rollout) |
 | **在线 RL** | [`mmtrainer.algorithms`](src/mmtrainer/algorithms/catalog.py) | DiffusionNFT、非对称 DPO、Flow-GRPO、DiffusionOPSD、FlowMimic-OPSD、Edit-R1 |
 | **数据集** | [`mmtrainer.datasets`](src/mmtrainer/datasets/manifest.py) | T2I、单/多参考编辑、偏好对的 JSONL 清单加载 |
 | **奖励** | [`mmtrainer.rewards`](src/mmtrainer/rewards/) | 5 点可微 ArcFace 身份损失、RationalRewards VLM 解析 |

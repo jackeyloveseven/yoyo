@@ -56,3 +56,12 @@ class ImageOPDPlugin(CatalogObjectivePlugin):
     required_model_capabilities = frozenset({"image_training"})
     reward_required = True
     objective_import_path = "mmtrainer.algorithms.sft_dpo.objectives:flow_opd_ode_loss"
+
+
+class LatentConsistencyPlugin(CatalogObjectivePlugin):
+    plugin_id = "latent_consistency"
+    required_model_capabilities = frozenset({"image_training"})
+    reward_required = False
+    objective_import_path = (
+        "mmtrainer.algorithms.latent_consistency.objectives:lcm_consistency_loss"
+    )
