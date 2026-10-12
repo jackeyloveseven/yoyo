@@ -132,6 +132,42 @@ class MyCustomAdapter(BaseModelAdapter):
 
 ---
 
+## Roadmap:日积月累,欢迎认领
+
+YoYo 按"集百家之长"的思路持续演进:吸收 DiffSynth / Musubi / SimpleTuner / SGLang /
+vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零件。机制见
+[`docs/sourcing/`](docs/sourcing/README.md)。下面是三条主线和待办,**任何人都可以
+认领一项、按 [`docs/sourcing/intake-sop.md`](docs/sourcing/intake-sop.md) 提 PR**。
+
+### 主线一:用好现有零件
+
+- [x] 6 个自包含示例(SFT / DPO / 蒸馏 / RL / 自定义模型),CPU 可跑
+- [ ] 每个示例补一页"实验指标 + 可视化 + 下一步建议"卡(见主线二)
+
+### 主线二:按需组建训练脚本(交互式)
+
+> 目标:用户说"我要训 X",系统组装出脚本,并主动提示**涉及哪些实验指标**
+> (loss 曲线 / KL / 奖励分布)、**需要哪些可视化**(采样网格 / 奖励曲线)、
+> **下一步该做什么**(晋级 / 调参 / 评估)。
+
+- [ ] `mmtrain compose` 交互向导骨架:选模型 + 目标 + 数据 → 产出训练脚本
+- [ ] 指标与可视化推荐器:按所选目标,列出应监控的指标与对应图表
+- [ ] 下一步指示建议器:依据晋级阶梯(见 [`USAGE.md`](USAGE.md))给出后续动作
+
+### 主线三:持续导入新组件
+
+- [x] 吸收体系与 SOP([`docs/sourcing/`](docs/sourcing/README.md))
+- [ ] 用 `import-method` 模板导入第一个新方法(候选:Miles 的训练吞吐优化)
+- [ ] 上游雷达首轮核查:更新 `docs/sourcing/README.md` 各行的"最近一次核查"
+
+### 更新流程与文档系统
+
+- [x] 上游雷达 + 评估标准 + 导入 SOP 固化成文
+- [ ] 定期核查节奏:定一个触发规则(如每月 / 上游发版时重看雷达表)
+- [ ] 文档结构性缺口:补 `docs/adr/` 首批 ADR、给 6 个已注册模型各补一页能力卡
+
+---
+
 ## 文档与质量门
 
 | 指南 | 路径 |
