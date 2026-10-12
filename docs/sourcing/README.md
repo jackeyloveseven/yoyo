@@ -33,8 +33,23 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 | [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 待核查 |
 | [vLLM](https://github.com/vllm-project/vllm) | PagedAttention、连续批处理(供 rollout 加速参考) | 待核查 |
 | [Diffusers](https://github.com/huggingface/diffusers) | 求解器/调度器官方实现、模型 IO 契约 | 待核查 |
-| [AI-Toolkit](https://github.com/ostris/ai-toolkit) | 微调 UX、D-OPSD 自蒸馏分支、扩展注册表 | 部分(见 README 对比) |
-| [Miles](https://github.com/radixark/miles) | **训练吞吐优化**(其训练速度被社区公认领先) | 待核查 |
+| [AI-Toolkit](https://github.com/ostris/ai-toolkit) | 微调 UX、D-OPSD 自蒸馏分支、扩展注册表 | 部分(见根 README 对比) |
+| [Miles](https://github.com/radixark/miles) / [miles_diffusion](https://github.com/radixark/miles_diffusion) | 扩散 RL 的异步吞吐、LoRA IPC 权重同步 | 已核查 2026-10-12,暂不吸收(见下) |
+
+### Miles 核查结论(2026-10-12,暂不吸收)
+
+- **注意是两个仓库**:`miles` 是 LLM/VLM 的 RL 框架(加速手法面向万亿参数 rollout,
+  与我们无关);同赛道的扩散版是 [`miles_diffusion`](https://github.com/radixark/miles_diffusion),
+  做 Flow-GRPO + DiffusionNFT + SFT,与我们算法栈一致。
+- **它的"快"来自重架构,非可抽零件**:rollout 卸载到 SGLang-diffusion 推理服务、
+  rollout/training 全异步解耦、Ray + FSDP2 + USP 集群并行、LoRA 经 CUDA IPC 只传
+  `lora_A`/`lora_B`。三个支柱全部深耦合在分布式系统里,抽不出独立纯函数零件。
+- **决策:暂不吸收**。整体搬入等于推倒我们的轻量 engine 重写,违背架构门;且当前
+  `launch_enabled=false`,吞吐不是瓶颈,过早优化。其价值在于**外部印证了我们选的
+  算法栈(Flow-GRPO/DiffusionNFT/SFT)在生产规模可行**。
+- **未来可重看**:若日后做"训练-采样分离",可借鉴"异步 rollout 想法"(轻量版:
+  CUDA stream / producer-consumer 重叠采样与反向)与"LoRA 只传 A/B 对想法"。届时按
+  [`intake-sop.md`](intake-sop.md) 评估。
 
 > 每次核查后,把日期、上游 commit、和"本次值得吸收的亮点"更新到对应行,形成
 > 可追溯的 receipt,而不是一句"最近看过"。
