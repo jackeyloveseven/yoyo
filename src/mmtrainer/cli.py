@@ -43,6 +43,11 @@ def _parser() -> argparse.ArgumentParser:
     registry = commands.add_parser("registry")
     registry_commands = registry.add_subparsers(dest="registry_command", required=True)
     registry_commands.add_parser("list")
+
+    compose = commands.add_parser("compose")
+    compose.add_argument("--model", help="model plugin id (skip interactive prompt)")
+    compose.add_argument("--objective", help="objective plugin id (skip interactive prompt)")
+    compose.add_argument("--reward", help="reward plugin id (skip interactive prompt)")
     return parser
 
 
@@ -94,6 +99,49 @@ def _list_registry() -> int:
     return 0
 
 
+def _pick(prompt: str, options: list[str], preset: str | None) -> str:
+    """Return ``preset`` if valid, else interactively ask the user to pick one."""
+
+    if preset is not None:
+        if preset not in options:
+            raise ValueError(f"{preset!r} is not one of: {', '.join(options)}")
+        return preset
+    print(prompt)
+    for index, option in enumerate(options, start=1):
+        print(f"  {index}. {option}")
+    while True:
+        raw = input(f"选择 [1-{len(options)}] (回车默认 1): ").strip()
+        if raw == "":
+            return options[0]
+        if raw.isdigit() and 1 <= int(raw) <= len(options):
+            return options[int(raw) - 1]
+        if raw in options:
+            return raw
+        print(f"无效输入,请输入 1-{len(options)} 或插件 id。")
+
+
+def _run_compose(args: argparse.Namespace) -> int:
+    from mmtrainer.compose import ComposeChoice, build_blueprint
+    from mmtrainer.compose.compose import compatible_objectives, compatible_rewards
+
+    registries = build_builtin_registries()
+    model_options = sorted(entry.plugin_id for entry in registries.models.entries())
+    model_id = _pick("① 选择模型:", model_options, args.model)
+
+    objective_options = compatible_objectives(registries, model_id)
+    objective_id = _pick(f"② 选择目标(模型 {model_id} 可跑):", objective_options, args.objective)
+
+    reward_options = compatible_rewards(registries, objective_id)
+    reward_id = _pick("③ 选择 reward:", reward_options, args.reward)
+
+    blueprint = build_blueprint(
+        registries,
+        ComposeChoice(model_id=model_id, objective_id=objective_id, reward_id=reward_id),
+    )
+    _print(blueprint)
+    return 0
+
+
 def dispatch(args: argparse.Namespace) -> int:
     if args.command == "plan" and args.plan_command == "validate":
         return _validate_plan(args.spec)
@@ -103,6 +151,8 @@ def dispatch(args: argparse.Namespace) -> int:
         return _import_policy(args)
     if args.command == "registry" and args.registry_command == "list":
         return _list_registry()
+    if args.command == "compose":
+        return _run_compose(args)
     raise AssertionError("argparse returned an unregistered command")
 
 

@@ -61,7 +61,18 @@ mmtrain registry list        # 列出所有模型 / 算法 / 数据集 / 奖励�
 mmtrain plan validate --spec recipes/v2/firered_diffusionnft.json
 ```
 
-### 3. 跑一个完整示例（CPU 也能跑）
+### 3. 让 YoYo 帮你组训练方案
+
+不知道选哪个模型、哪个目标？`mmtrain compose` 问答式地带你选（只列出与所选模型
+兼容的目标和 reward)，并输出一份**训练蓝图**：该监控哪些指标、该做哪些可视化、
+下一步怎么晋级。也可全参数非交互调用（适合 agent):
+
+```bash
+mmtrain compose                                              # 交互向导
+mmtrain compose --model krea2 --objective flow_grpo --reward hpsv3pp   # 非交互出蓝图
+```
+
+### 4. 跑一个完整示例（CPU 也能跑）
 
 [`examples/`](examples/README.md) 里每个脚本都是自包含的，验证从模型到损失的整条链路：
 
@@ -178,6 +189,9 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 | 可组合示例索引 | [`examples/README.md`](examples/README.md) |
 | 数学与算法约定 | [`docs/algorithms/README.md`](docs/algorithms/README.md) |
 | 重构与零件抽取记录 | [`docs/REFACTORING_HANDOFF.md`](docs/REFACTORING_HANDOFF.md) |
+| 构建与决策日志(接手必读) | [`docs/BUILDING.md`](docs/BUILDING.md) |
+| 模型能力卡与兼容矩阵 | [`docs/models/README.md`](docs/models/README.md) |
+| 上游吸收体系与 SOP | [`docs/sourcing/README.md`](docs/sourcing/README.md) |
 
 提交前在本地跑一遍所有质量门：
 
