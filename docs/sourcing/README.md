@@ -29,7 +29,7 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 | :--- | :--- | :--- |
 | [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 待核查 |
 | [Musubi Tuner](https://github.com/kohya-ss/musubi-tuner) | 视频模型 LoRA(HunyuanVideo/Wan2.x/FramePack/MiniMax-H3)、文本编码器缓存的坑 | 已核查 2026-10-12,记教训不吸收(见下) |
-| [SimpleTuner](https://github.com/bghira/SimpleTuner) | **新方法导入的边界与测试范式**(见下) | 待核查 |
+| [SimpleTuner](https://github.com/bghira/SimpleTuner) | **蒸馏方法注册表范式、LCM 参考实现** | 已核查 2026-10-12,印证架构 + LCM 参考(见下) |
 | [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 待核查 |
 | [vLLM](https://github.com/vllm-project/vllm) | PagedAttention、连续批处理(供 rollout 加速参考) | 待核查 |
 | [Diffusers](https://github.com/huggingface/diffusers) | 求解器/调度器官方实现、模型 IO 契约 | 已核查 2026-10-12,求解器无缺口;**LCM 少步蒸馏为候选**(见下) |
@@ -73,6 +73,21 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
   Ideogram 4 旋转嵌入未初始化产生 NaN。**对我们的启示**:若我们日后做文本编码器
   输出缓存/预计算,必须固定 encoder 为 eval 模式、校验嵌入初始化、并按库版本对
   缓存做一致性核查。这是一条可写进未来"缓存零件"测试要求的经验,无需现在动代码。
+
+### SimpleTuner 核查结论(2026-10-12,印证架构 + LCM 参考实现)
+
+- **蒸馏注册表范式与我们同构**:SimpleTuner 的 `simpletuner/helpers/distillation/`
+  把每个蒸馏方法做成一个子目录(`lcm/`、`dcm/`、`dmd/`、`anyflow/`、`perflow/`、
+  `self_forcing/` 等),配 `DistillationRegistry` + `DistillerRequirementProfile`
+  (需求声明档案)+ `factory.py`。这与 YoYo 的"每方法一零件 + `LazyRegistry` +
+  capabilities 声明"在**设计哲学上完全一致**——外部再一次印证 ADR-0001 的方向。
+- **LCM 权威参考**:`distillation/lcm/__init__.py`(约 400 行)是生产级 LCM 实现,
+  可作为我们实现 LCM 一致性蒸馏时的**数学对照**(一致性目标构造、EMA detach、
+  sigma 调度)。按 ADR-0003,只参考其数学,**不抄**其 `DistillationBase` 类结构
+  (深耦合其 trainer)。
+- **测试范式参考**:其 `tests/` 按方法分文件(`test_ace_step_*.py` 等)+ 多 runner
+  脚本,佐证 SOP"每方法一组失败模式测试"的做法。
+- **决策**:作为架构印证与 LCM 数学参考记录;其框架代码不吸收。
 
 > 每次核查后,把日期、上游 commit、和"本次值得吸收的亮点"更新到对应行,形成
 > 可追溯的 receipt,而不是一句"最近看过"。
