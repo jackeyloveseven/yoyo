@@ -27,7 +27,7 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 
 | 上游 | 我们关注它什么 | 最近一次核查 |
 | :--- | :--- | :--- |
-| [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 已核查 2026-10-13,**OPD 值得吸收**(见下) |
+| [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 已核查 2026-10-13,**OPD 已吸收**(`on_policy_distill`,ADR-0005) |
 | [Musubi Tuner](https://github.com/kohya-ss/musubi-tuner) | 视频模型 LoRA(HunyuanVideo/Wan2.x/FramePack/MiniMax-H3)、文本编码器缓存的坑 | 已核查 2026-10-12,记教训不吸收(见下) |
 | [SimpleTuner](https://github.com/bghira/SimpleTuner) | **蒸馏方法注册表范式、LCM 参考实现** | 已核查 2026-10-12,印证架构 + LCM 参考(见下) |
 | [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 已评估 2026-10-13,推理引擎与训练零件无交集;未来做训练-采样分离时可参考其 rollout 加速思路(见 Miles 结论) |
