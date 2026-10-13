@@ -201,6 +201,7 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 
 | 指南 | 路径 |
 | :--- | :--- |
+| **入门导读(先读这个)** | [`docs/onboarding.md`](docs/onboarding.md) |
 | CLI 与生命周期用法 | [`USAGE.md`](USAGE.md) |
 | 分层架构与依赖规则 | [`ARCHITECTURE_V2.md`](ARCHITECTURE_V2.md) |
 | 贡献与代码质量标准 | [`CONTRIBUTING_V2.md`](CONTRIBUTING_V2.md) |
