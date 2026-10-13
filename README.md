@@ -47,12 +47,28 @@ YoYo 把这些**公共零件抽出来，各放一处，各自单测**：
 | **核心文件** | 训练进程是超大类（SDTrainer.py 约 129KB） | 零件是小函数，单文件强制 ≤800 行（质量门拦截） |
 | **加新算法** | 在 trainer 的扩展点内开发 | 写一个独立 loss 函数丢进 `algorithms/`，注册一行 |
 | **加新模型** | 用它的 model registry 接入 | 写 25 行 `BaseModelAdapter`，立刻用全部算法 |
-| **RL / DPO** | main 分支未见内置实现 | 一等公民，内置 6 套 RL/DPO/蒸馏原语 |
-| **蒸馏** | 有 D-OPSD 自蒸馏分支（单一目标） | 多目标可叠加：OPD + DMD2 + NormGuard + REPA 同时组合 |
+| **RL / DPO** | main 分支未见内置实现 | 一等公民，内置 10 个可跑目标（RL/DPO/蒸馏/SFT）+ 7 个奖励后端 |
+| **蒸馏** | 有 D-OPSD 自蒸馏分支（单一目标） | 多目标可叠加：OPD + DMD2 + NormGuard + REPA + LCM 同时组合 |
 | **图形界面** | 有 Web UI，点点鼠标就能训 | 无 UI，面向写代码的研究者 |
-| **质量保障** | 社区驱动、迭代快，CI 不跑测试 | 每次提交强制过 AST 门 + 50+ 单测 + 文档链接检查 |
+| **质量保障** | 社区驱动、迭代快，CI 不跑测试 | 每次提交强制过 AST 门 + 85 数值不变量测试 + 文档门 |
 
 **一句话**：想快速给 FLUX 训个 LoRA、不想碰代码——用 AI-Toolkit 更顺手。想在多个模型上系统地做后训练、蒸馏、RL 研究，且要求代码可测、可复用、不重复——YoYo 更合适。
+
+---
+
+## 定位:扩散后训练的开源学术基线
+
+YoYo 的目标不是"另一个训练脚本合集",而是做**扩散/流匹配后训练领域的公共基线**:
+
+- **统一约定**:加噪 `x_t=(1-t)x_0+t·noise`、Euler/DPM2 求解器、FP32 上溢规则
+  写在基座层,所有算法共享——杜绝每篇论文一套符号约定,对比实验从第一天就可比。
+- **结果可核对**:每个算法零件配契约卡(数值约定、detach 边界、失败模式)和
+  一组数值不变量测试(KL 的 FP32 计算、教师 detach、零方差组中性),README 里的
+  每个数字与代码同源,由文档同步测试强制一致。
+- **论文到零件有标准路径**:上游雷达监测 8 个活跃项目 + import SOP 定义准入
+  门槛与三个人工把关点,已走通 LCM 与 On-Policy Distillation 两个完整案例。
+
+项目主页:[github.com/jackeyloveseven/yoyo](https://github.com/jackeyloveseven/yoyo)
 
 ---
 
@@ -89,26 +105,21 @@ mmtrain compose --model krea2 --objective flow_grpo --reward hpsv3pp   # 非交�
 [`examples/`](examples/README.md) 里每个脚本都是自包含的，验证从模型到损失的整条链路：
 
 ```bash
-# ① 流匹配 SFT（Krea2 单流 DiT + 余弦学习率）
+# ① 流匹配 SFT(Krea2 单流 DiT + 余弦学习率)
 PYTHONPATH=src:. python3 examples/train_sft_edit.py
-
 # ② 耦合噪声 Flow-DPO 偏好对齐
 PYTHONPATH=src:. python3 examples/train_dpo_preference.py
-
-# ③ 多目标蒸馏（OPD + DMD2 + NormGuard + REPA + 稀疏 LoRA-MoE）
+# ③ 多目标蒸馏(OPD + DMD2 + NormGuard + REPA + 稀疏 LoRA-MoE)
 PYTHONPATH=src:. python3 examples/train_distill_opd_dmd.py
-
-# ④ 在线 RL：DiffusionNFT + VLM 多维 & 身份奖励
+# ④ 在线 RL:DiffusionNFT + VLM 多维 & 身份奖励
 PYTHONPATH=src:. python3 examples/train_rl_diffusionnft.py
-
-# ⑤ 轨迹 RL：Flow-GRPO + DiffusionOPSD
+# ⑤ 轨迹 RL:Flow-GRPO + DiffusionOPSD
 PYTHONPATH=src:. python3 examples/train_rl_flow_grpo.py
-
 # ⑥ 接入一个全新模型架构 + Euler/DPM2 推理
 PYTHONPATH=src:. python3 examples/custom_model_and_infer.py
-
-# ⑦ LCM 少步蒸馏（在线学生 + EMA 目标，相邻步自举一致性）
+# ⑦ LCM 少步蒸馏 / ⑧ On-Policy Distillation 少步蒸馏
 PYTHONPATH=src:. python3 examples/train_lcm_distill.py
+PYTHONPATH=src:. python3 examples/train_on_policy_distill.py
 ```
 
 ---
@@ -163,37 +174,19 @@ class MyCustomAdapter(BaseModelAdapter):
 
 YoYo 按"集百家之长"的思路持续演进:吸收 DiffSynth / Musubi / SimpleTuner / SGLang /
 vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零件。机制见
-[`docs/sourcing/`](docs/sourcing/README.md)。下面是三条主线和待办,**任何人都可以
-认领一项、按 [`docs/sourcing/intake-sop.md`](docs/sourcing/intake-sop.md) 提 PR**。
+[`docs/sourcing/`](docs/sourcing/README.md),**任何人都可以认领一项、按
+[`docs/sourcing/intake-sop.md`](docs/sourcing/intake-sop.md) 提 PR**。
 
-### 主线一:用好现有零件
+**主线一(用现有零件)**:8 个 CPU 示例 + 实验卡 ✓
+**主线二(按需组建)**:`mmtrain compose` 向导 + 指标/可视化推荐 + 晋级建议 +
+`--output` 落盘蓝图 ✓
+**主线三(导入新组件)**:吸收体系与 SOP ✓;LCM 与 On-Policy Distillation 两个
+方法已完整走 SOP ✓;上游雷达 8/8 首轮核查完毕 ✓
+**文档系统**:5 篇 ADR、6 张模型能力卡(注册表同步测试守护)、入门导读、
+三条核查触发规则 ✓
 
-- [x] 8 个自包含示例(SFT / DPO / 蒸馏 / RL×2 / LCM / On-Policy 蒸馏 / 自定义模型),CPU 可跑
-- [x] 每个示例补"实验指标 + 可视化 + 下一步"卡(见 [`examples/README.md`](examples/README.md))
-
-### 主线二:按需组建训练脚本(交互式)
-
-> 目标:用户说"我要训 X",系统组装出脚本,并主动提示**涉及哪些实验指标**
-> (loss 曲线 / KL / 奖励分布)、**需要哪些可视化**(采样网格 / 奖励曲线)、
-> **下一步该做什么**(晋级 / 调参 / 评估)。
-
-- [x] `mmtrain compose` 交互向导:选模型 → 兼容目标 → reward → 产出训练蓝图
-- [x] 指标与可视化推荐:按所选目标/reward,列出应监控的指标与对应图表
-- [x] 下一步指示:按晋级阶梯给出后续动作;`--output` 落盘 json/md 蓝图
-
-### 主线三:持续导入新组件
-
-- [x] 吸收体系与 SOP([`docs/sourcing/`](docs/sourcing/README.md))
-- [x] 第一个完整走 SOP 的方法:LCM 少步蒸馏(`algorithms/latent_consistency/`,示例 7)
-- [x] 第二个走 SOP 的方法:On-Policy Distillation(`algorithms/on_policy_distill/`,示例 8,源自 DiffSynth)
-- [x] 上游雷达首轮核查:8/8 全部完成(结论与候选见 [`docs/sourcing/`](docs/sourcing/README.md))
-
-### 更新流程与文档系统
-
-- [x] 上游雷达 + 评估标准 + 导入 SOP 固化成文
-- [x] `docs/adr/` 首批 5 篇 ADR(注册表/质量门/吸收原则/compose 边界/OPD 命名)
-- [x] 6 个模型能力卡 + 注册表同步测试([`docs/models/`](docs/models/README.md))
-- [x] 定期核查节奏:三条触发规则(月度例行/上游发版/新需求触发,见 [`docs/sourcing/`](docs/sourcing/README.md))
+**当前大方向**:视频模型支持(大工程,未排期)、GPU 晋级(需 WebTrainer 控制面)、
+可视化真实绘图(等 GPU 晋级后重估)。
 
 ---
 

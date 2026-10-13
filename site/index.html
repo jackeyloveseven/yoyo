@@ -1,0 +1,371 @@
+<title>YoYo — Diffusion Post-Training Baselines</title>
+<style>
+  /* 设计计划:学术 baseline 平台。冷灰蓝中性色(向 accent 偏),靛蓝 accent,
+     mono 用于数字与指标名,衬线仅用于 hero。布局:单栏 hero + 三格定位 +
+     宽矩阵表 + 双栏入门。 */
+  :root {
+    --bg: #fbfcfd;
+    --surface: #ffffff;
+    --surface-sunken: #f3f5f8;
+    --fg: #1a2230;
+    --fg-muted: #56637a;
+    --fg-faint: #8a95a8;
+    --accent: #2f4bc4;
+    --accent-soft: #e8edfb;
+    --rule: #d9dfe9;
+    --rule-strong: #b9c3d4;
+    --good: #17703f;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --serif: "Source Serif 4", "Noto Serif SC", Georgia, "Times New Roman", serif;
+    --sans: "Inter var", "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1319;
+      --surface: #151d27;
+      --surface-sunken: #101821;
+      --fg: #e8edf5;
+      --fg-muted: #a3b0c2;
+      --fg-faint: #6d7b90;
+      --accent: #8fa8f5;
+      --accent-soft: #1c2946;
+      --rule: #26313f;
+      --rule-strong: #3a4a5f;
+      --good: #58c795;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1319;
+    --surface: #151d27;
+    --surface-sunken: #101821;
+    --fg: #e8edf5;
+    --fg-muted: #a3b0c2;
+    --fg-faint: #6d7b90;
+    --accent: #8fa8f5;
+    --accent-soft: #1c2946;
+    --rule: #26313f;
+    --rule-strong: #3a4a5f;
+    --good: #58c795;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    line-height: 1.65;
+    margin: 0;
+    padding-block: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    padding-inline: clamp(16px, 4vw, 40px);
+  }
+  h1, h2, h3 { text-wrap: balance; line-height: 1.2; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .mono { font-family: var(--mono); font-size: 0.86em; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    border-bottom: 1px solid var(--rule);
+    padding-block: clamp(48px, 9vh, 88px) clamp(36px, 6vh, 56px);
+    background: linear-gradient(180deg, var(--accent-soft), transparent 70%);
+  }
+  .hero .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  .hero h1 {
+    font-family: var(--serif);
+    font-size: clamp(30px, 5.4vw, 50px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 18px;
+    max-width: 720px;
+  }
+  .hero .lede {
+    font-size: clamp(16px, 2vw, 19px);
+    color: var(--fg-muted);
+    max-width: 680px;
+    margin: 0 0 30px;
+  }
+  .hero .lede strong { color: var(--fg); font-weight: 600; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 550;
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  :root[data-theme="dark"] .btn-primary, .dark .btn-primary { color: #0e1319; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .btn-primary { color: #0e1319; }
+  }
+  .btn-primary:hover { text-decoration: none; filter: brightness(1.08); }
+  .btn-ghost { border-color: var(--rule-strong); color: var(--fg); }
+  .btn-ghost:hover { text-decoration: none; border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- stats strip ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border-block: 1px solid var(--rule);
+  }
+  .stat {
+    background: var(--bg);
+    padding: 20px 18px;
+  }
+  .stat .num {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    display: block;
+  }
+  .stat .lbl { font-size: 12.5px; color: var(--fg-muted); margin-top: 4px; display: block; }
+
+  /* ---------- sections ---------- */
+  section { padding-block: clamp(40px, 7vh, 68px); }
+  section + section { border-top: 1px solid var(--rule); }
+  .sec-head { max-width: 700px; margin-bottom: 32px; }
+  .sec-head h2 {
+    font-family: var(--serif);
+    font-size: clamp(21px, 3vw, 28px);
+    font-weight: 600;
+    margin: 0 0 10px;
+  }
+  .sec-head p { color: var(--fg-muted); margin: 0; font-size: 15.5px; }
+
+  /* ---------- thesis cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 22px 20px;
+  }
+  .card h3 { font-size: 15.5px; margin: 0 0 8px; }
+  .card h3 .tag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .card p { font-size: 14px; color: var(--fg-muted); margin: 0; }
+
+  /* ---------- matrix table ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); }
+  thead th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-muted);
+    background: var(--surface-sunken);
+    font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.objective { font-family: var(--mono); font-weight: 550; white-space: nowrap; }
+  td .yes { color: var(--good); font-weight: 600; }
+  td .no { color: var(--fg-faint); }
+  .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    padding: 1px 7px;
+    border-radius: 99px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    margin-left: 8px;
+    vertical-align: 1px;
+  }
+
+  /* ---------- research pipeline ---------- */
+  .pipeline { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+  .pipe-step {
+    flex: 1 1 170px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13.5px;
+  }
+  .pipe-step b { display: block; font-size: 13px; margin-bottom: 4px; }
+  .pipe-step span { color: var(--fg-muted); font-size: 12.5px; }
+
+  /* ---------- getting started ---------- */
+  .start { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
+  @media (max-width: 760px) { .start { grid-template-columns: 1fr; } }
+  .cmd {
+    background: var(--surface-sunken);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--fg);
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0 0 12px;
+  }
+  .cmd .c { color: var(--fg-faint); user-select: none; }
+  ol.steps { margin: 0; padding-left: 22px; }
+  ol.steps li { margin-bottom: 14px; color: var(--fg-muted); font-size: 14.5px; }
+  ol.steps li b { color: var(--fg); }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-block: 28px 40px;
+    color: var(--fg-faint);
+    font-size: 13px;
+  }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Open Research Infrastructure</p>
+    <h1>开源扩散后训练基线:<br>SFT、蒸馏、RL,同一套零件</h1>
+    <p class="lede">
+      YoYo 把扩散/流匹配模型的后训练拆成<strong>可组合的纯函数零件</strong>——
+      加噪、ODE 求解器、损失函数、奖励模型、模型适配器各自独立、可单测、可复现。
+      每篇引用的算法都有契约卡、失败模式测试和端到端示例,让 baseline 结果
+      可核对,而不是一篇 README。
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>
+      <a class="btn btn-ghost" href="https://github.com/jackeyloveseven/yoyo#readme">技术文档</a>
+    </div>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><span class="num">10</span><span class="lbl">训练目标(SFT/DPO/蒸馏/RL)</span></div>
+  <div class="stat"><span class="num">7</span><span class="lbl">奖励后端(身份/美学/OCR)</span></div>
+  <div class="stat"><span class="num">8</span><span class="lbl">端到端 CPU 示例</span></div>
+  <div class="stat"><span class="num">6</span><span class="lbl">已注册模型适配器</span></div>
+  <div class="stat"><span class="num">85</span><span class="lbl">数值不变量测试</span></div>
+</div>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>为什么再写一个训练框架</h2>
+      <p>学术对比里,复现一个 baseline 的成本远高于读它的论文。我们把成本降到"装依赖、跑示例"。</p>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <h3><span class="tag">Reproducible</span>同一约定,全仓库通用</h3>
+        <p>加噪 <code>x_t=(1−t)x_0+t·noise</code>、Euler/DPM2 求解器、FP32 上溢规则写死在基座层,所有算法共享,杜绝"每篇论文一个符号约定"。</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag">Verifiable</span>失败模式有测试守</h3>
+        <p>不只测"能跑":KL 是否在 FP16 下仍按 FP32 计算、教师目标是否 detach、优势归一化在零方差组是否中性——这些静默 bug 各有断言。</p>
+      </div>
+      <div class="card">
+        <h3><span class="tag">Composable</span>换零件,不换脚本</h3>
+        <p>25 行适配器接入新模型,即可用全部现成目标;新损失写成独立函数注册一行,不与 trainer 主干耦合。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Baseline 覆盖矩阵</h2>
+      <p>目标 × 模型能力兼容性(实时数据来自注册表,由文档同步测试强制一致)。</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>目标 / 方法</th><th>奖励</th><th>Klein</th><th>Qwen-Image</th><th>Krea2</th><th>FireRed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="objective">image_sft<span class="badge">SFT</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+          <tr><td class="objective">image_dpo<span class="badge">DPO</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+          <tr><td class="objective">latent_consistency<span class="badge">LCM</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+          <tr><td class="objective">on_policy_distill<span class="badge">OPD</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
+          <tr><td class="objective">flow_grpo<span class="badge">RL</span></td><td>required</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td class="objective">diffusionnft<span class="badge">RL</span></td><td>required</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--fg-faint);margin-top:10px;">
+      除 Krea2 外,现有模型不同时持 SFT 系与 RL 系能力——这一边界由
+      <code>test_model_cards.py</code> 对注册表强制,文档不会脱离代码。
+    </p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>一条实验的晋级阶梯</h2>
+      <p>任何 baseline 从"能构造"到"能引用",必须逐级拿 receipt,不可跳级。</p>
+    </div>
+    <div class="pipeline">
+      <div class="pipe-step"><b>1 · CPU preflight</b><span>组件可构造、契约成立</span></div>
+      <div class="pipe-step"><b>2 · GPU no-update</b><span>前向数值有限、显存可控</span></div>
+      <div class="pipe-step"><b>3 · one-update</b><span>一次完整更新,梯度非 nan</span></div>
+      <div class="pipe-step"><b>4 · checkpoint readback</b><span>写出读回,SHA-256 一致</span></div>
+      <div class="pipe-step"><b>5 · 冻结评估</b><span>固定权重评估,登记 receipt</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap start">
+    <div>
+      <div class="sec-head" style="margin-bottom:20px;">
+        <h2>五分钟跑通</h2>
+        <p>纯 CPU,无需权重。示例全部由单测守护,README 里的数字与代码同源。</p>
+      </div>
+      <ol class="steps">
+        <li><b>安装</b> — <code>pip install -e .</code>(Python 3.11/3.12)</li>
+        <li><b>跑测试</b> — 85 个数值不变量测试全绿即零件可信</li>
+        <li><b>选目标</b> — <code>mmtrain compose</code> 问答生成训练蓝图:指标、可视化、晋级建议</li>
+        <li><b>跑示例</b> — 从 SFT 到 RL 八个示例,各自返回真实指标</li>
+      </ol>
+    </div>
+    <div>
+      <div class="cmd"><span class="c">$</span> git clone https://github.com/jackeyloveseven/yoyo
+<span class="c">$</span> cd yoyo && pip install -e .
+<span class="c">$</span> pytest tests/v2 -q   <span class="c"># 85 passed</span>
+<span class="c">$</span> mmtrain compose --model krea2 --objective flow_grpo \
+    --reward hpsv3pp --output blueprint.md</div>
+      <p style="font-size:13.5px;color:var(--fg-muted);margin:0;">
+        蓝图会列出该目标应监控的全部指标(PPO clip fraction、KL、reward 曲线)、
+        该做的图(奖励曲线、采样网格)与下一步晋级动作——直接贴进实验记录。
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>YoYo · You Only Yield Once · MIT License</span>
+    <span>面向 agent 协作的后训练研究基础设施</span>
+  </div>
+</footer>
