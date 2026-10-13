@@ -13,7 +13,9 @@ permissions:
 jobs:
   quality-and-tests:
     name: Quality, Structure, Docs & Unit Tests (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    # pin 到 ubuntu-24.04:ubuntu-latest 将于 2026-10-19 迁移到 Ubuntu 26,
+    # 迁移日突然换基座镜像可能让 CI 无关变红;需要升级时再显式改这里。
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
