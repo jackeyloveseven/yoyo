@@ -151,6 +151,23 @@ OBJECTIVE_GUIDANCE: dict[str, ObjectiveGuidance] = {
         ),
         notes=("无需 reward,也不需要独立 fake-score 网络;目标网络由调用方以 EMA 维护并 detach。",),
     ),
+    "on_policy_distill": ObjectiveGuidance(
+        summary="On-Policy Distillation 少步蒸馏:学生一步预测对齐教师多步 Euler 轨迹终点。",
+        metrics=(
+            "total_loss(蒸馏总损失)",
+            "mse_loss(未加权逐样本 MSE 均值)",
+            "x0_rms(学生/教师干净样本差的 RMS)",
+        ),
+        visualizations=(
+            "学生一步采样 vs 教师多步采样对比网格",
+            "x0_rms 曲线(应随训练单调下降)",
+        ),
+        notes=(
+            "无需 reward;教师多步轨迹由调用方以 no_grad 构造并 detach 传入,"
+            "每样本成本为 num_distill_steps 次教师前向。与 image_opd(DiffusionOPD,"
+            "需 reward)是两个不同方法,勿混淆。",
+        ),
+    ),
 }
 
 # reward 插件 → 它实际产出的指标。

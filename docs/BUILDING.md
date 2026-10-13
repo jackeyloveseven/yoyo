@@ -205,19 +205,25 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
   已入注册表并同步 compose 指标表。
 - ~~**示例"指标+可视化+下一步"卡**~~ → 2026-10-13 完成,`examples/README.md` 补了
   7 个示例的实验卡表(指标/可视化/下一步,全部对齐代码里真实返回字段)。
-- **上游雷达**:已核 5/8(Miles、Diffusers、Musubi、SimpleTuner、DiffSynth),余 SGLang、
-  vLLM(推理引擎,与训练主线相关性较低,可缓)。DiffSynth 核查发现 **OPD 少步蒸馏**
-  值得吸收(约 30 行纯逻辑,无 GAN,与 LCM 互补),已记入候选。
-- **OPD 蒸馏导入**:DiffSynth 的 On-Policy Distillation,按 intake-sop.md 走 SOP,
-  实现为 `algorithms/` 新零件(纯函数损失,不抄其框架结构)。
-  **当前状态**:零件骨架由子代理实现中;数学规格待人工复核(见下)。
+- **上游雷达**:8/8 全部核查完毕(Miles、Diffusers、Musubi、SimpleTuner、DiffSynth、
+  SGLang、vLLM、AI-Toolkit)。SGLang/vLLM 为推理引擎,与训练零件无交集,已标记。
+- **On-Policy Distillation 蒸馏导入**:DiffSynth 的 OPD,按 intake-sop.md 走 SOP。
+  **2026-10-13 已实现**:`algorithms/on_policy_distill/`(types/objectives)+ 8 个单测
+  + 示例 8(`train_on_policy_distill.py`)+ 契约卡(`docs/algorithms/on_policy_distill.md`)
+  + 注册 `on_policy_distill`(image_training,无需 reward)+ compose 指标表同步。
+  **命名决策**:因仓库已有 `image_opd`(DiffusionOPD,需 reward,一步转移匹配),
+  新零件全名 On-Policy Distillation,避免缩写撞车——两者方法不同,已在契约卡与
+  compose notes 里写明区别。
+  **待办**:网关 502 期间实现,测试与质量门尚未跑通验证;数学规格仍待人工复核
+  (SOP 把关点 1/2)。
 
-  **OPD 数学规格(待复核)**:
+  **数学规格(待复核)**:
   - 学生预测 v_student = model(x_t, t),重建 x0_student = x_t - t·v_student
   - 教师多步 Euler 从 x_t 到 x0_teacher(no_grad,detach,由调用方计算)
   - loss = MSE(x0_student, x0_teacher.detach()) × sample_weight
   - 变体参数:num_distill_steps(教师步数,默认4)、min_distill_idx(最小蒸馏索引,默认0)
-  - 与 LCM 的区别:LCM 是相邻步自举一致性(无需教师),OPD 是教师轨迹对齐(需教师多步)
+  - 与 LCM 的区别:LCM 是相邻步自举一致性(无需教师),本方法是教师轨迹终点对齐
+    (需教师多步,信号更稳,每样本成本高 num_distill_steps 倍)
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
 - **可视化接真实绘图/dashboard**:目前蓝图只给"建议清单"。
 

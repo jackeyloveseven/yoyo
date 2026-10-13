@@ -23,7 +23,8 @@ compose 向导不知道也无权编造。让 compose 产出 RunSpec 会诱导用
 - **备选 A:compose 直接产出 RunSpec。** 放弃:资产哈希与运行时拓扑不可得;且
   `ComponentSpec` 的 validator 明确禁止在 config 里写 path/url/host,蓝图阶段
   根本填不出合法 spec。
-- **备选 B:蓝图落盘为 json/md。** 暂缓:MVP 先只打印;落盘留 `--output` 作为后续。
+- **备选 B:蓝图落盘为 json/md。** ~~暂缓:MVP 先只打印~~ → 2026-10-12 已实现
+  `--output path.json / path.md`,蓝图可落盘为机器可消费的 json 或人可读的 Markdown。
 - **后果(正面)**:蓝图如实标注"这是计划不是 spec",职责边界清晰;指标表对齐
   代码真实返回字段,不虚构。
 - **后果(约束)**:面向 agent(全参数非交互)与面向人(问答+默认值+解释)必须
@@ -39,7 +40,8 @@ compose 向导不知道也无权编造。让 compose 产出 RunSpec 会诱导用
 ## 4. 同一迁移中移除/修正的旧物
 
 无文件移除。修正一处代码/文档不一致:identity reward 只是 examples 里的函数,
-未注册为插件,故从 reward 指标表移除并注释,待注册后补回。
+未注册为插件,故从 reward 指标表移除并注释。~~待注册后补回~~ → 2026-10-13 已注册
+(`IdentityRewardPlugin`,commit `dc19908`),指标表已补回。
 
 ## 5. 验证与回滚边界
 

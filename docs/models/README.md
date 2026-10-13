@@ -20,9 +20,10 @@
 | image_dpo | · | · | Y | Y | Y | Y | · |
 | image_opd | R | · | Y | Y | Y | Y | · |
 | latent_consistency | · | · | Y | Y | Y | Y | · |
+| on_policy_distill | · | · | Y | Y | Y | Y | · |
 
 > **关键边界**:目前没有模型同时持有 `diffusion_alignment` 与 `image_training` 两种
-> 能力——RL 系目标(上 5 行)与 SFT/DPO 系目标(下 4 行)在现有模型上互不重叠。
+> 能力——RL 系目标(上 5 行)与 SFT/DPO 系目标(下 5 行)在现有模型上互不重叠。
 > 要让某模型两边都跑,需为其适配器补齐缺失能力并重新晋级。
 
 ## 各模型卡

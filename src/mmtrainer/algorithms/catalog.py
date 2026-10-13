@@ -65,3 +65,12 @@ class LatentConsistencyPlugin(CatalogObjectivePlugin):
     objective_import_path = (
         "mmtrainer.algorithms.latent_consistency.objectives:lcm_consistency_loss"
     )
+
+
+class OnPolicyDistillPlugin(CatalogObjectivePlugin):
+    plugin_id = "on_policy_distill"
+    required_model_capabilities = frozenset({"image_training"})
+    reward_required = False
+    objective_import_path = (
+        "mmtrainer.algorithms.on_policy_distill.objectives:on_policy_distill_loss"
+    )

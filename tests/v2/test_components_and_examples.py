@@ -12,6 +12,8 @@ from check_structure import audit_training_code
 from examples.custom_model_and_infer import run_custom_model_and_infer_demo
 from examples.train_distill_opd_dmd import run_distill_demo
 from examples.train_dpo_preference import run_dpo_demo
+from examples.train_lcm_distill import run_lcm_demo
+from examples.train_on_policy_distill import run_on_policy_distill_demo
 from examples.train_rl_diffusionnft import run_diffusionnft_demo
 from examples.train_rl_flow_grpo import run_flow_grpo_and_opsd_demo
 from examples.train_sft_edit import run_sft_demo
@@ -279,3 +281,5 @@ def test_all_composable_examples_run() -> None:
     assert "total_loss" in run_diffusionnft_demo()
     assert "total_loss" in run_flow_grpo_and_opsd_demo()
     assert run_custom_model_and_infer_demo(steps=2)["rollout_steps"] == 2
+    assert "total_loss" in run_lcm_demo()
+    assert "total_loss" in run_on_policy_distill_demo()

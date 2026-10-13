@@ -168,7 +168,7 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 
 ### 主线一:用好现有零件
 
-- [x] 7 个自包含示例(SFT / DPO / 蒸馏 / RL×2 / LCM / 自定义模型),CPU 可跑
+- [x] 8 个自包含示例(SFT / DPO / 蒸馏 / RL×2 / LCM / On-Policy 蒸馏 / 自定义模型),CPU 可跑
 - [x] 每个示例补"实验指标 + 可视化 + 下一步"卡(见 [`examples/README.md`](examples/README.md))
 
 ### 主线二:按需组建训练脚本(交互式)
@@ -185,14 +185,15 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 
 - [x] 吸收体系与 SOP([`docs/sourcing/`](docs/sourcing/README.md))
 - [x] 第一个完整走 SOP 的方法:LCM 少步蒸馏(`algorithms/latent_consistency/`,示例 7)
-- [ ] 上游雷达首轮核查:已核 4/8(Miles/Diffusers/Musubi/SimpleTuner),余 SGLang/vLLM/DiffSynth
+- [x] 第二个走 SOP 的方法:On-Policy Distillation(`algorithms/on_policy_distill/`,示例 8,源自 DiffSynth)
+- [x] 上游雷达首轮核查:8/8 全部完成(结论与候选见 [`docs/sourcing/`](docs/sourcing/README.md))
 
 ### 更新流程与文档系统
 
 - [x] 上游雷达 + 评估标准 + 导入 SOP 固化成文
 - [x] `docs/adr/` 首批 4 篇 ADR(注册表/质量门/吸收原则/compose 边界)
 - [x] 6 个模型能力卡 + 注册表同步测试([`docs/models/`](docs/models/README.md))
-- [ ] 定期核查节奏:定一个触发规则(如每月 / 上游发版时重看雷达表)
+- [x] 定期核查节奏:三条触发规则(月度例行/上游发版/新需求触发,见 [`docs/sourcing/`](docs/sourcing/README.md))
 
 ---
 
