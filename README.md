@@ -164,6 +164,7 @@ class MyCustomAdapter(BaseModelAdapter):
 | **SFT/DPO/蒸馏** | [`mmtrainer.algorithms.sft_dpo`](src/mmtrainer/algorithms/sft_dpo/) | Flow SFT、耦合噪声 DPO、OPD、DMD2、GT-Reg、NormGuard、REPA |
 | **少步蒸馏** | [`mmtrainer.algorithms.latent_consistency`](src/mmtrainer/algorithms/latent_consistency/) · [`mmtrainer.algorithms.on_policy_distill`](src/mmtrainer/algorithms/on_policy_distill/) | LCM 一致性自举(相邻 ODE 步,无需教师多步 rollout);On-Policy Distillation(教师多步轨迹终点对齐) |
 | **在线 RL** | [`mmtrainer.algorithms`](src/mmtrainer/algorithms/catalog.py) | DiffusionNFT、非对称 DPO、Flow-GRPO、DiffusionOPSD、FlowMimic-OPSD、Edit-R1 |
+| **奖励匹配** | [`mmtrainer.algorithms.reward_matching`](src/mmtrainer/algorithms/reward_matching/) | AWM(优势加权匹配)、RAM(REINFORCE 伴随匹配)——论文最新,零件已备,待注册 |
 | **数据集** | [`mmtrainer.datasets`](src/mmtrainer/datasets/manifest.py) | T2I、单/多参考编辑、偏好对的 JSONL 清单加载 |
 | **奖励** | [`mmtrainer.rewards`](src/mmtrainer/rewards/) | 身份相似度(ArcFace 5 点可微)、RationalRewards/Edit-R1 VLM 多维评分、HPSv3++、PickScore、OCR |
 | **运行时** | [`mmtrainer.runtime`](src/mmtrainer/runtime/checkpoints.py) | 原子 SHA-256 checkpoint 清单、紧凑 BF16 参数状态 |
