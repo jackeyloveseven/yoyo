@@ -63,6 +63,42 @@ def test_marketing_redlines_enforced_in_video() -> None:
     assert "GPU 就绪" in text or "launch_enabled" in text
 
 
+def test_formulas_are_typeset_not_literal_ascii() -> None:
+    """公式必须经 mathtext 排版上镜,不得以 x_t / x_0 / noise 这类字面出现在文案里。
+
+    TeX 源码误上镜(如 `$x_t$` 未被剥成公式体)是肉眼很难发现的缺陷,
+    这里断言 math_image 会显式拒绝含 $ 的公式体,并守住历史踩坑点。
+    """
+    import numpy as np
+
+    mod = _renderer_module()
+    # ① math_image 渲染真公式成功(透明底,有墨迹)
+    glyph = mod.math_image(r"x_t = (1-t)\,x_0 + t\,\varepsilon", 40, (236, 239, 244))
+    arr = np.asarray(glyph)
+    assert arr.shape[2] == 4, "math glyph must be RGBA (transparent background)"
+    assert arr[..., 3].min() == 0, "math glyph background must be transparent"
+    assert (arr[..., 3] > 128).sum() > 50, "math glyph has no ink"
+    # ② 含 $ 的公式体必须被拒绝(否则会静默渲染成字面文本上镜)
+    import pytest
+
+    with pytest.raises(ValueError, match="不应含"):
+        mod.math_image(r"$x_t$", 40, (236, 239, 244))
+
+
+def test_no_latex_source_leaks_into_on_screen_copy() -> None:
+    """上镜文案里不得出现未剥净的 $...$ LaTeX 源码(会原样上镜)。
+
+    历史踩坑:baseline 卡片 body 用 `$x_t=...$` 包裹,只剥了前导 $ 而漏了尾随 $,
+    于是 `$x_t = (1-t)\\,x_0...` 整串作为字面文本渲染上镜。
+    判据:凡形如 `$变量`(紧跟字母/反斜杠,即 LaTeX 开头)的文案,其 $ 必须成对;
+    shell 提示符 `$ ` 与 `$ mmtrain ...`(后跟空格/命令)不在此列。
+    """
+    on_screen = _on_screen_text()
+    for match in re.finditer(r'"([^"\n]*\$[a-zA-Z\\][^"\n]*)"', on_screen):
+        literal = match.group(1)
+        assert literal.count("$") % 2 == 0, f"未剥净的 LaTeX 会上镜: {literal!r}"
+
+
 def test_video_and_poster_artifacts_exist() -> None:
     """成品必须入库(GitHub Pages 从 git 提供 site/,不入库即上线 404)。"""
     assets = PROMO_DIR.parent / "assets"
@@ -82,8 +118,12 @@ def _renderer_module():
     return module
 
 
-def test_build_audio_matches_video_length_and_marks_scene_onsets() -> None:
-    """配乐时长=视频时长,且每个分镜起点附近有琶音能量峰(需 numpy)。"""
+def test_build_audio_has_musical_content_and_correct_length() -> None:
+    """配乐时长=视频时长,全片无死寂,首尾渐弱,且含预期和弦的基频能量。
+
+    旧的"分镜起点有琶音峰"判据在连续琶音下不再成立(每一拍都有音),
+    改为验证音乐本身的属性——这才是 build_audio 真正该保证的东西。
+    """
     import tempfile
     import wave
 
@@ -101,20 +141,30 @@ def test_build_audio_matches_video_length_and_marks_scene_onsets() -> None:
             pcm /= 32768.0
     # ① 时长一致:音频采样数 / 采样率 = 视频帧数 / FPS(允许 1 帧 rounding)
     video_seconds = sum(end - start for _, start, end, _ in table) / mod.FPS
-    audio_seconds = n_frames / rate
-    assert abs(audio_seconds - video_seconds) < 1.0 / mod.FPS, (
-        f"audio {audio_seconds:.2f}s != video {video_seconds:.2f}s"
+    assert abs(n_frames / rate - video_seconds) < 1.0 / mod.FPS, (
+        f"audio {n_frames / rate:.2f}s != video {video_seconds:.2f}s"
     )
-    # ② 每个分镜起点(除 hero,开头是 pad 淡入)在 ±0.15s 内有琶音能量峰。
-    # 不能比总振幅——pad 本身峰值 ≈0.77,琶音只有 ±0.16,同域打架(实测比率仅 1.15)。
-    # 琶音是 440/554/659Hz,pad 是 55/110/164.8Hz,频率域不重叠,
-    # 故用一阶差分(高频能量)判据:实测各起点比率 2.9~14.2。
-    high_band = np.abs(np.diff(pcm))
-    win = int(0.15 * rate)
-    for name, start, _, _ in table:
-        if start == 0:
-            continue
-        t0 = int(start / mod.FPS * rate)
-        near = float(high_band[t0 - win : t0 + win].max())
-        before = float(high_band[t0 - 3 * win : t0 - win].max())
-        assert near > 0.01 and near > 1.5 * before, f"no onset peak at scene {name}"
+    # ② 无死寂:全片按 0.5s 切片,每片 RMS 都高于底噪(排除首尾渐弱区)
+    body = pcm[int(2.0 * rate) : int((video_seconds - 3.5) * rate)]
+    hop = int(0.5 * rate)
+    rms = [float(np.sqrt(np.mean(body[i : i + hop] ** 2))) for i in range(0, len(body) - hop, hop)]
+    assert min(rms) > 0.01, f"dead air found: min window RMS {min(rms):.4f}"
+    assert max(rms) < 0.95, "audio clipping-suspect (flat-topped?)"
+    # ③ 首尾渐弱:起始与结尾 0.2s 的振幅显著低于片中
+    head = float(np.abs(pcm[: int(0.2 * rate)]).max())
+    tail = float(np.abs(pcm[-int(0.2 * rate) :]).max())
+    mid = float(
+        np.abs(pcm[int(video_seconds / 2 * rate) - hop : int(video_seconds / 2 * rate)]).max()
+    )
+    assert head < 0.2 * mid, f"no fade-in (head {head:.3f} vs mid {mid:.3f})"
+    assert tail < 0.2 * mid, f"no fade-out (tail {tail:.3f} vs mid {mid:.3f})"
+    # ④ 和声内容:频谱在 A(110Hz)附近应有能量(Am 和弦根音,全片出现多次)
+    spec = np.abs(np.fft.rfft(pcm[: int(4.0 * rate)] * np.hanning(int(4.0 * rate))))
+    freqs = np.fft.rfftfreq(int(4.0 * rate), 1.0 / rate)
+
+    def band_energy(lo: float, hi: float) -> float:
+        return float(spec[(freqs >= lo) & (freqs <= hi)].max())
+
+    assert band_energy(105, 115) > band_energy(300, 320) * 1.5, (
+        "no A-root harmonic energy in the first chord (Am)"
+    )

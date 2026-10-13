@@ -66,6 +66,90 @@ class Fonts:
         return self._get(MONO_BOLD_PATH if bold else MONO_PATH, size)
 
 
+# ---- 公式排版(mathtext → 透明 PNG),论文级下标/斜体/希腊字母 ----
+
+_MATH_CACHE: dict[tuple[str, int, tuple[int, int, int]], Image.Image] = {}
+
+
+def math_image(tex: str, fontsize: int, color: tuple[int, int, int]) -> Image.Image:
+    """把 TeX 片段排成透明底 PNG(带缓存)。
+
+    `mathtext` 直接输出是白底不透明;改走 Figure(transparent + tight bbox),
+    得到真透明底、指定前景色、按 fontsize 缩放的图像,可与其他文字混排。
+    调用方传入不含 `$` 的公式体,如 r"x_t = (1-t)\\,x_0 + t\\,\\varepsilon"。
+    """
+    key = (tex, fontsize, color)
+    if key not in _MATH_CACHE:
+        import io
+
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        # tex 是公式体(不含 $);混入 $ 会让 mathtext 静默渲染成字面文本上镜,
+        # 这是很难肉眼发现的缺陷,故显式拒绝。
+        if "$" in tex:
+            raise ValueError(f"math body 不应含 $: {tex!r}")
+        fig = plt.figure(figsize=(0.01, 0.01), dpi=100)
+        fig.patch.set_alpha(0.0)
+        mpl_color = tuple(c / 255 for c in color[:3])  # matplotlib 要 0-1 浮点
+        fig.text(0, 0, f"${tex}$", fontsize=fontsize, color=mpl_color)
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", transparent=True, bbox_inches="tight", pad_inches=0.0)
+        plt.close(fig)
+        buf.seek(0)
+        _MATH_CACHE[key] = Image.open(buf).convert("RGBA")
+    return _MATH_CACHE[key]
+
+
+def draw_math(
+    img: Image.Image,
+    center: tuple[float, float],
+    tex: str,
+    fontsize: int,
+    color: tuple[int, int, int],
+) -> float:
+    """在 center(mm 锚点)居中贴一段公式,返回其像素宽度。"""
+    glyph = math_image(tex, fontsize, color)
+    gw, gh = glyph.size
+    img.alpha_composite(glyph, (int(center[0] - gw / 2), int(center[1] - gh / 2)))
+    return float(gw)
+
+
+def draw_mixed_line(
+    img: Image.Image,
+    draw: ImageDraw.ImageDraw,
+    y: float,
+    segments: list[tuple[str, str, int]],
+    color: tuple[int, int, int],
+    gap: int = 18,
+    center_x: float | None = None,
+) -> float:
+    """一行内混排 CJK 文字与 TeX 公式,整体水平居中,返回行宽。
+
+    segments 每项为 (kind, payload, size):kind="cjk" 用 Noto CJK 实体字,
+    kind="math" 用 mathtext 渲染(真下标/斜体),两者按中心线对齐。
+    center_x 缺省为画幅中线,可传面板中线以嵌入局部布局。
+    """
+    widths: list[float] = []
+    for kind, payload, size in segments:
+        if kind == "math":
+            widths.append(float(math_image(payload, size, color).size[0]))
+        else:
+            widths.append(float(draw.textlength(payload, font=FONTS.cjk(size, "Bold"))))
+    total = sum(widths) + gap * (len(segments) - 1)
+    x = (W / 2 if center_x is None else center_x) - total / 2
+    for (kind, payload, size), w in zip(segments, widths, strict=True):
+        if kind == "math":
+            glyph = math_image(payload, size, color)
+            img.alpha_composite(glyph, (int(x), int(y - glyph.size[1] / 2)))
+        else:
+            draw.text((x, y), payload, font=FONTS.cjk(size, "Bold"), fill=color, anchor="lm")
+        x += w + gap
+    return total
+
+
 # ---- 缓动与包络 ----
 
 
@@ -257,7 +341,13 @@ def sc_pain(img, draw, t01: float) -> None:
     draw_background(img, draw, t01 * 1.5, seed=1)
     title(draw, "传统做法:每个任务,复制一整套脚本", smooth(t01 * 10))
     names = ["SFT 脚本", "DPO 脚本", "RL 脚本", "蒸馏脚本"]
-    inner = ["模型加载", "加噪 x_t", "ODE 求解器", "学习率表", "FSDP 封装"]
+    inner: list[list[tuple[str, str, int]]] = [
+        [("cjk", "模型加载", 26)],
+        [("cjk", "加噪", 26), ("math", r"x_t", 26)],
+        [("cjk", "ODE 求解器", 26)],
+        [("cjk", "学习率表", 26)],
+        [("cjk", "FSDP 封装", 26)],
+    ]
     bw, bh = 380, 470
     gap = (W - 4 * bw) / 5
     flash = math.sin(t01 * math.pi * 6) * 0.5 + 0.5 if 0.35 < t01 < 0.8 else 0.0
@@ -290,12 +380,14 @@ def sc_pain(img, draw, t01: float) -> None:
             base = mix(PALETTE["panel"], PALETTE["line"], 0.8)
             col = mix(base, PALETTE["danger"], flash * 0.55)
             panel(draw, [x + 26, by, x + bw - 26, by + 54], 10, fill=mix(PALETTE["bg"], col, kj))
-            draw.text(
-                (x + bw / 2, by + 27),
+            draw_mixed_line(
+                img,
+                draw,
+                by + 27,
                 block,
-                font=FONTS.cjk(26),
-                fill=mix(PALETTE["bg"], PALETTE["muted"], kj),
-                anchor="mm",
+                mix(PALETTE["bg"], PALETTE["muted"], kj),
+                gap=8,
+                center_x=x + bw / 2,
             )
     caption(draw, "同一段逻辑复制了 N 份 —— 改一处,要改十处", smooth(t01 * 8 - 0.9))
 
@@ -311,14 +403,14 @@ def sc_parts(img, draw, t01: float) -> None:
         ("datasets/", "JSONL 清单加载"),
         ("rewards/", "ArcFace 身份 · VLM 评分 · 美学分"),
     ]
-    bw, bh = 1040, 96
-    y0 = 214
+    bw, bh = 1040, 112
+    y0 = 208
     for i, (name, desc) in enumerate(parts):
         kk = stagger(t01, i, 0.07)
         if kk <= 0:
             continue
         x = W / 2 - bw / 2 + (1 - kk) * 60
-        y = y0 + i * (bh + 22)
+        y = y0 + i * (bh + 14)
         panel(
             draw,
             [x, y, x + bw, y + bh],
@@ -328,14 +420,14 @@ def sc_parts(img, draw, t01: float) -> None:
             width=2,
         )
         draw.text(
-            (x + 36, y + bh / 2 - 4),
+            (x + 48, y + bh / 2 - 16),
             name,
             font=FONTS.mono(30, bold=True),
             fill=mix(PALETTE["bg"], PALETTE["accent"], kk),
             anchor="lm",
         )
         draw.text(
-            (x + 36, y + bh / 2 + 34),
+            (x + 48, y + bh / 2 + 26),
             desc,
             font=FONTS.cjk(26),
             fill=mix(PALETTE["bg"], PALETTE["muted"], kk),
@@ -345,7 +437,7 @@ def sc_parts(img, draw, t01: float) -> None:
     if k_hook > 0:
         text = "换一种训练方式?换零件,不换整套脚本。"
         draw.text(
-            (W / 2, y0 + 5 * (bh + 22) + 22),
+            (W / 2, y0 + 5 * (bh + 14) + 34),
             text,
             font=FONTS.cjk(32, "Bold"),
             fill=mix(PALETTE["bg"], PALETTE["accent"], k_hook),
@@ -459,10 +551,19 @@ def sc_flow(img, draw, t01: float) -> None:
     不是装饰。t 前半程 0→1(淹没),后半程 1→0(找回),画面即公式本身。
     """
     draw_background(img, draw, t01 * 1.1, seed=8)
-    title(draw, "一条约定贯穿全仓库:x_t = (1-t)·x_0 + t·noise", smooth(t01 * 10))
+    draw_mixed_line(
+        img,
+        draw,
+        130.0,
+        [
+            ("cjk", "一条约定贯穿全仓库:", 56),
+            ("math", r"x_t = (1-t)\,x_0 + t\,\varepsilon", 52),
+        ],
+        mix(PALETTE["bg"], PALETTE["fg"], smooth(t01 * 10)),
+    )
 
     S = 560  # 可视化方形画布边长
-    gx, gy = W / 2 - S - 90, 300  # 左图:混合场 x_t
+    gx, gy = W / 2 - S - 90, 268  # 左图:混合场 x_t(上移,给底部图注与 caption 留白)
     px = W / 2 + 90  # 右图 x 起点(y 与左图同)
 
     # --- 干净图 x_0:2 通道图案场(确定性) ---
@@ -496,12 +597,13 @@ def sc_flow(img, draw, t01: float) -> None:
     k_lbl = smooth(t01 * 8 - 0.2)
     if k_lbl > 0:
         col = mix(PALETTE["bg"], PALETTE["fg"], k_lbl)
-        draw.text(
-            (gx + S / 2, gy + S + 44),
-            "x_t(混合场)",
-            font=FONTS.cjk(30, "Bold"),
-            fill=col,
-            anchor="mm",
+        draw_mixed_line(
+            img,
+            draw,
+            gy + S + 44,
+            [("math", r"x_t", 34), ("cjk", "(混合场)", 30)],
+            col,
+            center_x=gx + S / 2,
         )
         draw.text(
             (gx + S / 2, gy + S + 92),
@@ -516,15 +618,29 @@ def sc_flow(img, draw, t01: float) -> None:
     if k_arrow > 0:
         _draw_velocity_arrows(draw, noise, x0, (int(px), int(gy)), k_arrow)
         lab_col = mix(PALETTE["bg"], PALETTE["fg"], k_arrow)
-        draw.text(
-            (px + S / 2, gy + S + 44),
-            "v = noise - x_0(要学的方向)",
-            font=FONTS.cjk(30, "Bold"),
-            fill=lab_col,
-            anchor="mm",
+        draw_mixed_line(
+            img,
+            draw,
+            gy + S + 44,
+            [
+                ("math", r"v = \varepsilon - x_0", 34),
+                ("cjk", "(要学的方向)", 30),
+            ],
+            lab_col,
+            center_x=px + S / 2,
         )
 
-    caption(draw, "模型要学的:给我 (x_t, t),告诉我指向干净样本的方向", smooth(t01 * 8 - 0.9))
+    draw_mixed_line(
+        img,
+        draw,
+        H - 96,
+        [
+            ("cjk", "模型要学的:给我", 30),
+            ("math", r"(x_t,\; t)", 28),
+            ("cjk", ",告诉我指向干净样本的方向", 30),
+        ],
+        mix(PALETTE["bg"], PALETTE["muted"], smooth(t01 * 8 - 0.9)),
+    )
 
 
 @scene("numbers", 8.0)
@@ -536,7 +652,7 @@ def sc_numbers(img, draw, t01: float) -> None:
         ("10", "训练目标"),
         ("7", "奖励后端"),
         ("8", "CPU 可跑示例"),
-        ("94", "测试全绿"),
+        ("97", "测试全绿"),
         ("6", "篇 ADR"),
     ]
     tw_, th_ = 540, 250
@@ -588,7 +704,7 @@ def sc_gates(img, draw, t01: float) -> None:
         ("check_v2_quality", "AST 门:行数/复杂度/去重"),
         ("check_structure", "依赖方向与组件存在"),
         ("check_docs", "断链/重复/文档预算"),
-        ("pytest tests/v2", "95 个数值不变量"),
+        ("pytest tests/v2", "97 个数值不变量"),
     ]
     bw, bh = 1000, 88
     y0 = 220
@@ -643,7 +759,11 @@ def sc_baseline(img, draw, t01: float) -> None:
     draw_background(img, draw, t01 * 1.0, seed=5)
     title(draw, "不止是工具箱 —— 扩散后训练的开源学术基线", smooth(t01 * 10))
     cards = [
-        ("统一约定", "x_t = (1-t)·x_0 + t·noise\n所有算法共享一套符号约定\n对比实验从第一天就可比"),
+        (
+            "统一约定",
+            "$x_t = (1-t)\\,x_0 + t\\,\\varepsilon$\n"
+            "所有算法共享一套符号约定\n对比实验从第一天就可比",
+        ),
         ("结果可核对", "每个算法配契约卡\n数值不变量测试(NaN 拒收、\n教师 detach、KL 走 FP32)"),
         ("论文到零件", "上游雷达盯 8 个活跃项目\nimport SOP + 人工把关点\nLCM / OPD 已完整走通"),
     ]
@@ -674,6 +794,17 @@ def sc_baseline(img, draw, t01: float) -> None:
             anchor="mm",
         )
         for j, line in enumerate(body.split("\n")):
+            if line.startswith("$") and line.endswith("$") and len(line) > 2:
+                # 用 $...$ 包住的行按 TeX 公式排版(两端都要剥掉)
+                draw_mixed_line(
+                    img,
+                    draw,
+                    y0 + 140 + j * 52,
+                    [("math", line[1:-1], 30)],
+                    mix(PALETTE["bg"], PALETTE["fg"], kk),
+                    center_x=x + cw_ / 2,
+                )
+                continue
             draw.text(
                 (x + cw_ / 2, y0 + 140 + j * 52),
                 line,
@@ -833,46 +964,108 @@ def render_frame_at(row, frame: int) -> Image.Image:
     return img
 
 
-def build_audio(track: Path, table) -> None:
-    """程序化配乐:低音 pad(整片) + 分镜切换琶音打点 + 首尾渐变。
+def _pluck(
+    buf: np.ndarray,
+    t0: float,
+    freq: float,
+    dur: float,
+    amp: float,
+    rate: int,
+) -> None:
+    """在 buf 上叠加一个电钢琴音色的一击(基频 + 两个泛音 + 指数衰减包络)。
 
-    无外部音频文件;正弦波叠加,PCM wav 写盘,encode 阶段由 ffmpeg 转 AAC。
-    基调 A(55/110Hz)+ 纯五度;每个分镜起点(除首帧)一个 A 大调琶音短打点。
+    苹果产品片那种"电钢琶音"的听感来自:偏正弦的柔和基频、少量八度泛音、
+    快速起音 + 中速衰减(像琴槌敲弦),不留长尾。
+    """
+    n0 = int(t0 * rate)
+    n1 = min(len(buf), n0 + int(dur * rate))
+    if n0 >= len(buf):
+        return
+    seg = np.arange(n1 - n0) / rate
+    attack = np.minimum(1.0, seg / 0.008)  # 8ms 起音,避免爆音
+    decay = np.exp(-seg * 3.2)
+    env = attack * decay
+    wave = (
+        np.sin(2 * np.pi * freq * seg)
+        + 0.32 * np.sin(2 * np.pi * 2 * freq * seg)  # 八度泛音
+        + 0.12 * np.sin(2 * np.pi * 3 * freq * seg)  # 十二度泛音
+    )
+    buf[n0:n1] += amp * wave * env
+
+
+def _sub_pulse(buf: np.ndarray, t0: float, freq: float, dur: float, rate: int) -> None:
+    """极低频 sub 脉冲:缓慢起落,给和声进行一个不打扰的地面。"""
+    n0 = int(t0 * rate)
+    n1 = min(len(buf), n0 + int(dur * rate))
+    if n0 >= len(buf):
+        return
+    seg = np.arange(n1 - n0) / rate
+    env = np.sin(np.pi * np.clip(seg / dur, 0, 1)) ** 2  # 抛物线起落
+    buf[n0:n1] += 0.20 * np.sin(2 * np.pi * freq * seg) * env
+
+
+def build_audio(track: Path, table) -> None:
+    """程序化配乐:极简电钢琶音 + 弦垫 + sub 脉冲(苹果产品片式听感)。
+
+    和声进行 Am–F–C–G 循环,每小节 2 拍、每拍八分音符琶音;分镜切换点落在
+    一个柔和的和弦转位上。靠和声进行推进,不用军鼓/底鼓。全片首尾渐弱。
     """
     import wave
 
     rate = 44100
     total_frames = sum(end - start for _, start, end, _ in table)
+    video_seconds = total_frames / FPS
     n_samples = total_frames * rate // FPS  # 音频采样数 = 视频时长 × 采样率
-    t = np.arange(n_samples) / rate
-    # 和声 pad:A1 + A2 + E3,随时间轻微起伏
-    pad = (
-        0.30 * np.sin(2 * np.pi * 55 * t)
-        + 0.22 * np.sin(2 * np.pi * 110 * t + 0.5 * np.sin(2 * np.pi * 0.1 * t))
-        + 0.16 * np.sin(2 * np.pi * 164.8 * t)
-    )
-    pad *= 0.6 + 0.4 * np.sin(2 * np.pi * 0.07 * t)  # 呼吸感
-    # 分镜起点琶音(A4-C#5-E5,各 0.22s,指数衰减)—— start 是帧号,换算成秒
+    buf = np.zeros(n_samples)
+
+    # --- 弦垫:每 4 秒一个和弦,sin 包络起落;sub 脉冲落在包络最低点补地面 ---
+    # Am(A2/E3/A3) → F(F2/C3/F3) → C(C3/G3/C4) → G(G2/D3/G3)
+    chords = [
+        (110.00, 164.81, 220.00),  # Am
+        (87.31, 130.81, 174.61),  # F
+        (130.81, 196.00, 261.63),  # C
+        (98.00, 146.83, 196.00),  # G
+    ]
+    bar = 4.0  # 每和弦 4 秒
+    for seg_start in range(0, n_samples, int(bar * rate)):
+        freqs = chords[(seg_start // int(bar * rate)) % len(chords)]
+        n1 = min(n_samples, seg_start + int(bar * rate))
+        span = np.arange(n1 - seg_start) / rate
+        env = np.sin(np.pi * np.clip(span / bar, 0, 1)) ** 1.5 * 0.16
+        buf[seg_start:n1] += sum(np.sin(2 * np.pi * f * span) for f in freqs) * env / 3
+
+    # --- 电钢琶音:每拍两个八分音符,在和弦音上跑 ---
+    arp_pattern = [0, 2, 1, 2]  # 琶音的根/五/三/五走向
+    step = 0.5  # 八分音符 = 0.5s(全片 72 BPM 的二拍感)
+    n_steps = int(video_seconds / step)
+    for si in range(n_steps):
+        t0 = si * step
+        bi = int(t0 // bar) % len(chords)
+        note = chords[bi][arp_pattern[si % len(arp_pattern)]] * 2  # 高八度更像电钢
+        _pluck(buf, t0, note, 1.6, 0.13, rate)
+
+    # --- sub 脉冲:每小节点一下,给和声进行地面 ---
+    for si in range(int(video_seconds / bar) + 1):
+        t0 = si * bar
+        bi = si % len(chords)
+        _sub_pulse(buf, t0, chords[bi][0], bar, rate)
+
+    # --- 分镜切换:一个柔和的和弦转位,落在切换帧上 ---
     for _, start, _, _ in table:
         if start == 0:
-            continue  # 开头不加打点,pad 从零渐入
+            continue
         t0 = start / FPS
-        for i, freq in enumerate((440.0, 554.4, 659.3)):
-            onset = t0 + i * 0.05
-            n0 = int(onset * rate)
-            n1 = min(n_samples, n0 + int(0.22 * rate))
-            if n0 >= n_samples:
-                continue
-            seg = np.arange(n1 - n0) / rate
-            env = np.exp(-seg * 9)
-            pad[n0:n1] += 0.16 * np.sin(2 * np.pi * freq * seg) * env
-    # 全片首 1.2s 淡入、末 2.5s 淡出
-    fade_in = int(1.2 * rate)
-    fade_out = int(2.5 * rate)
+        bi = int(t0 // bar) % len(chords)
+        for k, freq in enumerate(chords[bi]):
+            _pluck(buf, t0 + k * 0.045, freq * 2, 1.1, 0.09, rate)
+
+    # --- 首尾渐变 ---
     env = np.ones(n_samples)
-    env[:fade_in] = np.linspace(0.0, 1.0, fade_in)
-    env[-fade_out:] = np.linspace(1.0, 0.0, fade_out)
-    audio = np.clip(pad * env * 0.9, -0.98, 0.98)
+    fade_in = int(1.5 * rate)
+    fade_out = int(3.0 * rate)
+    env[:fade_in] = np.linspace(0.0, 1.0, fade_in) ** 1.5
+    env[-fade_out:] = np.linspace(1.0, 0.0, fade_out) ** 1.5
+    audio = np.tanh(buf * env * 1.3) * 0.72  # tanh 软限幅,比硬 clip 干净
     pcm = (audio * 32767).astype(np.int16)
     with wave.open(str(track), "wb") as handle:
         handle.setnchannels(1)
@@ -927,6 +1120,21 @@ def encode(mp4: Path, table, limit_frames: int | None = None, audio: Path | None
     print(f"encoded {mp4} ({total} frames, {total / FPS:.1f}s){suffix}")
 
 
+def _parse_t01(raw: str) -> float:
+    """解析 scene:t01 里的进度值,必须落在 [0,1]。
+
+    注意 float("0_55") == 55.0(下划线是合法数字分隔符),静默越界会取到别的帧,
+    故显式拦下:越界即报错,提示用小数点。
+    """
+    try:
+        t = float(raw)
+    except ValueError as exc:
+        raise SystemExit(f"t01 不是合法数字: {raw!r}") from exc
+    if not 0.0 <= t <= 1.0:
+        raise SystemExit(f"t01 必须在 [0,1],得到 {t}(小数请用 '.' 而非 '_')")
+    return t
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--frame", help="单帧调试,格式 scene:t01(如 hero:0.8),输出 PNG")
@@ -947,7 +1155,7 @@ def main(argv: list[str] | None = None) -> int:
         name, _, t01 = args.frame.partition(":")
         for row in table:
             if row[0] == name:
-                t = float(t01) if t01 else 0.5
+                t = _parse_t01(t01) if t01 else 0.5
                 img = render_frame(table, row[1] + int(t * (row[2] - row[1] - 1)))
                 args.outdir.mkdir(parents=True, exist_ok=True)
                 out = args.outdir / f"frame_{name}_{t01.replace('.', '_')}.png"
@@ -970,7 +1178,7 @@ def main(argv: list[str] | None = None) -> int:
     name, _, t01 = args.poster_scene.partition(":")
     for row in table:
         if row[0] == name:
-            t = float(t01) if t01 else 0.5
+            t = _parse_t01(t01) if t01 else 0.5
             img = render_frame(table, row[1] + int(t * (row[2] - row[1] - 1)))
             args.poster.parent.mkdir(parents=True, exist_ok=True)
             img.convert("RGB").save(args.poster)
