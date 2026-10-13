@@ -210,6 +210,14 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
   值得吸收(约 30 行纯逻辑,无 GAN,与 LCM 互补),已记入候选。
 - **OPD 蒸馏导入**:DiffSynth 的 On-Policy Distillation,按 intake-sop.md 走 SOP,
   实现为 `algorithms/` 新零件(纯函数损失,不抄其框架结构)。
+  **当前状态**:零件骨架由子代理实现中;数学规格待人工复核(见下)。
+
+  **OPD 数学规格(待复核)**:
+  - 学生预测 v_student = model(x_t, t),重建 x0_student = x_t - t·v_student
+  - 教师多步 Euler 从 x_t 到 x0_teacher(no_grad,detach,由调用方计算)
+  - loss = MSE(x0_student, x0_teacher.detach()) × sample_weight
+  - 变体参数:num_distill_steps(教师步数,默认4)、min_distill_idx(最小蒸馏索引,默认0)
+  - 与 LCM 的区别:LCM 是相邻步自举一致性(无需教师),OPD 是教师轨迹对齐(需教师多步)
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
 - **可视化接真实绘图/dashboard**:目前蓝图只给"建议清单"。
 
