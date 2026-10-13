@@ -65,3 +65,7 @@ Thumbs.db
 !.vscode/extensions.json
 *.swp
 *.swo
+
+# Promo video debug frames (final site/assets/promo.mp4 + poster ARE tracked:
+# GitHub Pages serves site/ from git, so the video must live in the repo)
+site/promo/frame_*.png

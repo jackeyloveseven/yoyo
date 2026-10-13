@@ -38,10 +38,10 @@ jobs:
           python -m pip install -e ".[test,checkpoint]" Pillow
 
       - name: Run Ruff Lint Gate
-        run: PYTHONPATH=src python -m ruff check src/ tests/ examples/ check_v2_quality.py check_structure.py check_docs.py
+        run: PYTHONPATH=src python -m ruff check src/ tests/ examples/ site/promo/ check_v2_quality.py check_structure.py check_docs.py
 
       - name: Run Ruff Format Gate
-        run: PYTHONPATH=src python -m ruff format --check src/ tests/ examples/
+        run: PYTHONPATH=src python -m ruff format --check src/ tests/ examples/ site/promo/
 
       - name: Run AST & Code Quality Gate
         run: PYTHONPATH=src python check_v2_quality.py

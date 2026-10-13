@@ -1,373 +1,565 @@
-<title>YoYo — Diffusion Post-Training Baselines</title>
-<style>
-  /* 设计计划:学术 baseline 平台。冷灰蓝中性色(向 accent 偏),靛蓝 accent,
-     mono 用于数字与指标名,衬线仅用于 hero。布局:单栏 hero + 三格定位 +
-     宽矩阵表 + 双栏入门。 */
-  :root {
-    --bg: #fbfcfd;
-    --surface: #ffffff;
-    --surface-sunken: #f3f5f8;
-    --fg: #1a2230;
-    --fg-muted: #56637a;
-    --fg-faint: #8a95a8;
-    --accent: #2f4bc4;
-    --accent-soft: #e8edfb;
-    --rule: #d9dfe9;
-    --rule-strong: #b9c3d4;
-    --good: #17703f;
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
-    --serif: "Source Serif 4", "Noto Serif SC", Georgia, "Times New Roman", serif;
-    --sans: "Inter var", "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0e1319;
-      --surface: #151d27;
-      --surface-sunken: #101821;
-      --fg: #e8edf5;
-      --fg-muted: #a3b0c2;
-      --fg-faint: #6d7b90;
-      --accent: #8fa8f5;
-      --accent-soft: #1c2946;
-      --rule: #26313f;
-      --rule-strong: #3a4a5f;
-      --good: #58c795;
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0e1319;
-    --surface: #151d27;
-    --surface-sunken: #101821;
-    --fg: #e8edf5;
-    --fg-muted: #a3b0c2;
-    --fg-faint: #6d7b90;
-    --accent: #8fa8f5;
-    --accent-soft: #1c2946;
-    --rule: #26313f;
-    --rule-strong: #3a4a5f;
-    --good: #58c795;
-    color-scheme: dark;
-  }
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YoYo — 扩散后训练的可组合零件库 | You Only Yield Once</title>
+<meta name="description" content="YoYo 把扩散/流匹配模型的后训练拆成可组合的纯函数零件：7 个模型适配器、10 个训练目标、7 个奖励后端，同一套加噪与求解器约定。开源学术基线，不是又一个训练脚本合集。">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F6F5F1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101318" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://jackeyloveseven.github.io/yoyo/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="YoYo">
+<meta property="og:title" content="YoYo — 扩散后训练的可组合零件库">
+<meta property="og:description" content="SFT、DPO、蒸馏、RL 不各写一套脚本。7 个模型适配器、10 个训练目标、7 个奖励后端，同一套零件拼装。开源学术基线。">
+<meta property="og:image" content="assets/og.png">
+<meta property="og:url" content="https://jackeyloveseven.github.io/yoyo/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/site.css">
+<script>document.documentElement.className += " js";</script>
+<script src="assets/registry-data.js" defer></script>
+<script src="assets/compose-explorer.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">跳到主要内容</a>
 
-  * { box-sizing: border-box; }
-  body {
-    background: var(--bg);
-    color: var(--fg);
-    font-family: var(--sans);
-    line-height: 1.65;
-    margin: 0;
-    padding-block: 0;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap {
-    max-width: 1060px;
-    margin: 0 auto;
-    padding-inline: clamp(16px, 4vw, 40px);
-  }
-  h1, h2, h3 { text-wrap: balance; line-height: 1.2; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  code, .mono { font-family: var(--mono); font-size: 0.86em; }
-
-  /* ---------- hero ---------- */
-  .hero {
-    border-bottom: 1px solid var(--rule);
-    padding-block: clamp(48px, 9vh, 88px) clamp(36px, 6vh, 56px);
-    background: linear-gradient(180deg, var(--accent-soft), transparent 70%);
-  }
-  .hero .eyebrow {
-    font-family: var(--mono);
-    font-size: 12px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin: 0 0 14px;
-  }
-  .hero h1 {
-    font-family: var(--serif);
-    font-size: clamp(30px, 5.4vw, 50px);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    margin: 0 0 18px;
-    max-width: 720px;
-  }
-  .hero .lede {
-    font-size: clamp(16px, 2vw, 19px);
-    color: var(--fg-muted);
-    max-width: 680px;
-    margin: 0 0 30px;
-  }
-  .hero .lede strong { color: var(--fg); font-weight: 600; }
-  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-  .btn {
-    display: inline-block;
-    padding: 10px 20px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 550;
-    border: 1px solid transparent;
-  }
-  .btn-primary { background: var(--accent); color: #fff; }
-  :root[data-theme="dark"] .btn-primary, .dark .btn-primary { color: #0e1319; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .btn-primary { color: #0e1319; }
-  }
-  .btn-primary:hover { text-decoration: none; filter: brightness(1.08); }
-  .btn-ghost { border-color: var(--rule-strong); color: var(--fg); }
-  .btn-ghost:hover { text-decoration: none; border-color: var(--accent); color: var(--accent); }
-
-  /* ---------- stats strip ---------- */
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1px;
-    background: var(--rule);
-    border-block: 1px solid var(--rule);
-  }
-  .stat {
-    background: var(--bg);
-    padding: 20px 18px;
-  }
-  .stat .num {
-    font-family: var(--mono);
-    font-size: 26px;
-    font-weight: 600;
-    color: var(--fg);
-    font-variant-numeric: tabular-nums;
-    display: block;
-  }
-  .stat .lbl { font-size: 12.5px; color: var(--fg-muted); margin-top: 4px; display: block; }
-
-  /* ---------- sections ---------- */
-  section { padding-block: clamp(40px, 7vh, 68px); }
-  section + section { border-top: 1px solid var(--rule); }
-  .sec-head { max-width: 700px; margin-bottom: 32px; }
-  .sec-head h2 {
-    font-family: var(--serif);
-    font-size: clamp(21px, 3vw, 28px);
-    font-weight: 600;
-    margin: 0 0 10px;
-  }
-  .sec-head p { color: var(--fg-muted); margin: 0; font-size: 15.5px; }
-
-  /* ---------- thesis cards ---------- */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    padding: 22px 20px;
-  }
-  .card h3 { font-size: 15.5px; margin: 0 0 8px; }
-  .card h3 .tag {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--accent);
-    display: block;
-    margin-bottom: 6px;
-  }
-  .card p { font-size: 14px; color: var(--fg-muted); margin: 0; }
-
-  /* ---------- matrix table ---------- */
-  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
-  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
-  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); }
-  thead th {
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--fg-muted);
-    background: var(--surface-sunken);
-    font-weight: 600;
-  }
-  tbody tr:last-child td { border-bottom: none; }
-  td.objective { font-family: var(--mono); font-weight: 550; white-space: nowrap; }
-  td .yes { color: var(--good); font-weight: 600; }
-  td .no { color: var(--fg-faint); }
-  .badge {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 10.5px;
-    padding: 1px 7px;
-    border-radius: 99px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    margin-left: 8px;
-    vertical-align: 1px;
-  }
-
-  /* ---------- research pipeline ---------- */
-  .pipeline { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
-  .pipe-step {
-    flex: 1 1 170px;
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-left: 3px solid var(--accent);
-    border-radius: 6px;
-    padding: 14px 16px;
-    font-size: 13.5px;
-  }
-  .pipe-step b { display: block; font-size: 13px; margin-bottom: 4px; }
-  .pipe-step span { color: var(--fg-muted); font-size: 12.5px; }
-
-  /* ---------- getting started ---------- */
-  .start { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start; }
-  @media (max-width: 760px) { .start { grid-template-columns: 1fr; } }
-  .cmd {
-    background: var(--surface-sunken);
-    border: 1px solid var(--rule);
-    border-radius: 6px;
-    padding: 12px 14px;
-    font-family: var(--mono);
-    font-size: 12.5px;
-    color: var(--fg);
-    overflow-x: auto;
-    white-space: pre;
-    margin: 0 0 12px;
-  }
-  .cmd .c { color: var(--fg-faint); user-select: none; }
-  ol.steps { margin: 0; padding-left: 22px; }
-  ol.steps li { margin-bottom: 14px; color: var(--fg-muted); font-size: 14.5px; }
-  ol.steps li b { color: var(--fg); }
-
-  footer {
-    border-top: 1px solid var(--rule);
-    padding-block: 28px 40px;
-    color: var(--fg-faint);
-    font-size: 13px;
-  }
-  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
-</style>
-
-<header class="hero">
-  <div class="wrap">
-    <p class="eyebrow">Open Research Infrastructure</p>
-    <h1>开源扩散后训练基线:<br>SFT、蒸馏、RL,同一套零件</h1>
-    <p class="lede">
-      YoYo 把扩散/流匹配模型的后训练拆成<strong>可组合的纯函数零件</strong>——
-      加噪、ODE 求解器、损失函数、奖励模型、模型适配器各自独立、可单测、可复现。
-      每篇引用的算法都有契约卡、失败模式测试和端到端示例,让 baseline 结果
-      可核对,而不是一篇 README。
-    </p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>
-      <a class="btn btn-ghost" href="https://github.com/jackeyloveseven/yoyo#readme">技术文档</a>
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>开源学术基线 · MIT · Python 3.10–3.13</p>
+      <h1>后训练不该<br>每篇论文重写一遍</h1>
+      <p class="lede">
+        YoYo 把扩散/流匹配模型的后训练拆成<strong>可组合的纯函数零件</strong>——
+        加噪、ODE 求解器、损失函数、奖励后端、模型适配器各自独立、可单测。
+        SFT、DPO、蒸馏、RL 换的是零件，不是整套脚本。
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>
+        <a class="btn btn-ghost" href="https://github.com/jackeyloveseven/yoyo#readme">技术文档</a>
+        <a class="btn btn-quiet" href="#explorer">试交互演示 ↓</a>
+      </div>
+      <p class="hero-note">
+        源码可用 <span class="neq">≠</span> GPU 就绪：每个目标都要走完
+        <code>preflight → GPU no-update → one-update → checkpoint readback → 冻结评估</code>
+        五级晋级，拿到 receipt 前 <code>launch_enabled=false</code>。
+      </p>
     </div>
+
+    <aside class="hero-panel" aria-label="mmtrain compose 蓝图预览">
+      <div class="panel-head">
+        <span class="panel-title">mmtrain compose</span>
+        <span class="panel-sub">真实注册表输出</span>
+      </div>
+      <div class="panel-pick">
+        <span class="k">model</span><span class="v mono">qwen_image_edit_2x</span>
+        <span class="k">objective</span><span class="v mono">image_dpo</span>
+      </div>
+      <p class="panel-summary" id="hero-summary">耦合噪声 Flow-DPO：共享噪声的赢/输对偏好优化。</p>
+      <p class="panel-label">该监控的指标</p>
+      <ul class="panel-list" id="hero-metrics">
+        <li><code>loss</code> DPO 损失</li>
+        <li><code>隐式奖励差</code> 赢/输对数概率差</li>
+        <li><code>偏好准确率</code> 赢样本得分更高的比例</li>
+      </ul>
+      <p class="panel-label">下一步晋级</p>
+      <p class="panel-next" id="hero-next">1 · CPU preflight — 组件可构造、契约成立</p>
+      <p class="panel-foot">蓝图不是可 launch 的 RunSpec；资产哈希与运行时拓扑由 WebTrainer 控制面填充。</p>
+    </aside>
+  </div>
+
+  <div class="stats" role="list">
+    <div class="stat" role="listitem"><span class="num">10</span><span class="lbl">训练目标（SFT/DPO/蒸馏/RL）</span></div>
+    <div class="stat" role="listitem"><span class="num">7</span><span class="lbl">奖励后端</span></div>
+    <div class="stat" role="listitem"><span class="num">6</span><span class="lbl">模型适配器（本页展示）</span></div>
+    <div class="stat" role="listitem"><span class="num">8</span><span class="lbl">CPU 端到端示例</span></div>
+    <div class="stat" role="listitem"><span class="num">94</span><span class="lbl">测试通过</span></div>
+    <div class="stat" role="listitem"><span class="num">6</span><span class="lbl">架构决策 ADR</span></div>
   </div>
 </header>
 
-<div class="stats">
-  <div class="stat"><span class="num">10</span><span class="lbl">训练目标(SFT/DPO/蒸馏/RL)</span></div>
-  <div class="stat"><span class="num">7</span><span class="lbl">奖励后端(身份/美学/OCR)</span></div>
-  <div class="stat"><span class="num">8</span><span class="lbl">端到端 CPU 示例</span></div>
-  <div class="stat"><span class="num">6</span><span class="lbl">已注册模型适配器</span></div>
-  <div class="stat"><span class="num">85</span><span class="lbl">数值不变量测试</span></div>
-</div>
+<main id="main">
 
-<section>
+<section class="sec" id="problem">
   <div class="wrap">
     <div class="sec-head">
-      <h2>为什么再写一个训练框架</h2>
-      <p>学术对比里,复现一个 baseline 的成本远高于读它的论文。我们把成本降到"装依赖、跑示例"。</p>
+      <p class="sec-eyebrow">问题</p>
+      <h2>同一批数学，被抄了四遍</h2>
+      <p>为 SFT 写一套脚本、为 DPO 抄一套、做 RL 再抄一套——模型加载、加噪、ODE 求解器、学习率、FSDP 的代码复制粘贴得到处都是，改一处要改十处，而且每套的符号约定都不一样，实验结果没法互相比。</p>
     </div>
-    <div class="cards">
-      <div class="card">
-        <h3><span class="tag">Reproducible</span>同一约定,全仓库通用</h3>
-        <p>加噪 <code>x_t=(1−t)x_0+t·noise</code>、Euler/DPM2 求解器、FP32 上溢规则写死在基座层,所有算法共享,杜绝"每篇论文一个符号约定"。</p>
+    <div class="duo">
+      <div class="duo-col">
+        <h3 class="duo-h3 bad">脚本合集</h3>
+        <ul class="ticks">
+          <li data-x="1">加噪公式每个 trainer 一份，符号不统一</li>
+          <li data-x="1">新算法 = 复制 129KB 的 trainer 主干</li>
+          <li data-x="1">换模型要重读一半训练逻辑</li>
+          <li data-x="1">测试只覆盖"能跑"，不覆盖静默 bug</li>
+        </ul>
       </div>
-      <div class="card">
-        <h3><span class="tag">Verifiable</span>失败模式有测试守</h3>
-        <p>不只测"能跑":KL 是否在 FP16 下仍按 FP32 计算、教师目标是否 detach、优势归一化在零方差组是否中性——这些静默 bug 各有断言。</p>
-      </div>
-      <div class="card">
-        <h3><span class="tag">Composable</span>换零件,不换脚本</h3>
-        <p>25 行适配器接入新模型,即可用全部现成目标;新损失写成独立函数注册一行,不与 trainer 主干耦合。</p>
+      <div class="duo-col">
+        <h3 class="duo-h3 good">YoYo 零件</h3>
+        <ul class="ticks">
+          <li>加噪 <code>x_t=(1−t)x₀+t·noise</code>、Euler/DPM2 写死在基座层，全仓库共享</li>
+          <li>新算法 = 一个独立 loss 函数 + 注册一行</li>
+          <li>新模型 = 25 行 <code>BaseModelAdapter</code>，立刻用全部目标</li>
+          <li>94 个数值不变量测试守 detach 边界、零方差组、FP32 路径</li>
+        </ul>
       </div>
     </div>
   </div>
 </section>
 
-<section>
+<section class="sec sec-alt" id="explorer">
   <div class="wrap">
     <div class="sec-head">
-      <h2>Baseline 覆盖矩阵</h2>
-      <p>目标 × 模型能力兼容性(实时数据来自注册表,由文档同步测试强制一致)。</p>
+      <p class="sec-eyebrow">交互演示</p>
+      <h2>选一个模型，看它能跑什么</h2>
+      <p>这就是 <code>mmtrain compose</code> 的兼容性判定逻辑：每个目标声明它需要哪些模型能力，模型的已注册能力是这些能力的超集时才算可跑。数据由注册表离线内联，与 <code>docs/models/README.md</code> 的矩阵同源，由测试强制一致。</p>
     </div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>目标 / 方法</th><th>奖励</th><th>Klein</th><th>Qwen-Image</th><th>Krea2</th><th>HiDream</th><th>SenseNova</th></tr>
-        </thead>
-        <tbody>
-          <tr><td class="objective">image_sft<span class="badge">SFT</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
-          <tr><td class="objective">image_dpo<span class="badge">DPO</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
-          <tr><td class="objective">latent_consistency<span class="badge">LCM</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
-          <tr><td class="objective">on_policy_distill<span class="badge">OPD</span></td><td>—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">—</td></tr>
-          <tr><td class="objective">flow_grpo<span class="badge">RL</span></td><td>required</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
-          <tr><td class="objective">diffusionnft<span class="badge">RL</span></td><td>required</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td><td class="yes">✓</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p style="font-size:13px;color:var(--fg-faint);margin-top:10px;">
-      除 Krea2 外,现有模型不同时持 SFT 系与 RL 系能力——这一边界由
-      <code>test_model_cards.py</code> 对注册表强制,文档不会脱离代码。
-      此外 AWM(优势加权匹配)与 RAM(REINFORCE 伴随匹配)零件已随最新论文入库
-      (契约卡 + 失败模式测试),按 SOP 注册为正式目标后即加入本矩阵。
-    </p>
-  </div>
-</section>
 
-<section>
-  <div class="wrap">
-    <div class="sec-head">
-      <h2>一条实验的晋级阶梯</h2>
-      <p>任何 baseline 从"能构造"到"能引用",必须逐级拿 receipt,不可跳级。</p>
-    </div>
-    <div class="pipeline">
-      <div class="pipe-step"><b>1 · CPU preflight</b><span>组件可构造、契约成立</span></div>
-      <div class="pipe-step"><b>2 · GPU no-update</b><span>前向数值有限、显存可控</span></div>
-      <div class="pipe-step"><b>3 · one-update</b><span>一次完整更新,梯度非 nan</span></div>
-      <div class="pipe-step"><b>4 · checkpoint readback</b><span>写出读回,SHA-256 一致</span></div>
-      <div class="pipe-step"><b>5 · 冻结评估</b><span>固定权重评估,登记 receipt</span></div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap start">
-    <div>
-      <div class="sec-head" style="margin-bottom:20px;">
-        <h2>五分钟跑通</h2>
-        <p>纯 CPU,无需权重。示例全部由单测守护,README 里的数字与代码同源。</p>
+    <div class="explorer" id="explorer-app">
+      <div class="ex-controls" role="tablist" aria-label="演示模式">
+        <button class="ex-mode is-active" role="tab" aria-selected="true" data-mode="model">按模型选</button>
+        <button class="ex-mode" role="tab" aria-selected="false" data-mode="objective">按目标选</button>
       </div>
-      <ol class="steps">
-        <li><b>安装</b> — <code>pip install -e .</code>(Python 3.11/3.12)</li>
-        <li><b>跑测试</b> — 85 个数值不变量测试全绿即零件可信</li>
-        <li><b>选目标</b> — <code>mmtrain compose</code> 问答生成训练蓝图:指标、可视化、晋级建议</li>
-        <li><b>跑示例</b> — 从 SFT 到 RL 八个示例,各自返回真实指标</li>
-      </ol>
-    </div>
-    <div>
-      <div class="cmd"><span class="c">$</span> git clone https://github.com/jackeyloveseven/yoyo
-<span class="c">$</span> cd yoyo && pip install -e .
-<span class="c">$</span> pytest tests/v2 -q   <span class="c"># 85 passed</span>
-<span class="c">$</span> mmtrain compose --model krea2 --objective flow_grpo \
-    --reward hpsv3pp --output blueprint.md</div>
-      <p style="font-size:13.5px;color:var(--fg-muted);margin:0;">
-        蓝图会列出该目标应监控的全部指标(PPO clip fraction、KL、reward 曲线)、
-        该做的图(奖励曲线、采样网格)与下一步晋级动作——直接贴进实验记录。
+
+      <div class="ex-body">
+        <div class="ex-panel">
+          <p class="ex-panel-label" id="ex-pick-label">选模型</p>
+          <div class="chips" id="ex-chips"></div>
+          <div class="ex-detail" id="ex-detail"></div>
+        </div>
+
+        <div class="ex-out">
+          <div class="ex-out-head">
+            <h3 id="ex-out-title">可跑目标</h3>
+            <span class="ex-count" id="ex-count"></span>
+          </div>
+          <ul class="ex-list" id="ex-list"></ul>
+          <p class="ex-hint" id="ex-hint"></p>
+        </div>
+      </div>
+
+      <p class="ex-noscript" id="ex-noscript">
+        静态视图：<code>klein</code> / <code>qwen_image</code> / <code>qwen_image_edit_2x</code> /
+        <code>hidream</code> 可跑 image_sft、image_dpo、image_opd、latent_consistency、on_policy_distill 五个监督系目标；
+        <code>sensenova</code> 可跑 RL 系五个目标（diffusionnft、flow_grpo、diffusion_opsd、edit_r1、flowmimic_opsd）；
+        <code>krea2</code> 是上表六个模型里唯一同时持有两系能力的，十个目标全可跑。
+        其余模型各只占一系——这一边界由注册表强制，文档不会脱离代码。
       </p>
     </div>
   </div>
 </section>
 
-<footer>
+<section class="sec" id="matrix">
   <div class="wrap">
-    <span>YoYo · You Only Yield Once · MIT License</span>
-    <span>面向 agent 协作的后训练研究基础设施</span>
+    <div class="sec-head">
+      <p class="sec-eyebrow">能力矩阵</p>
+      <h2>目标 × 模型，逐格来自注册表</h2>
+      <p>行为 = 目标的 <code>required_model_capabilities</code> 是否为该模型已注册能力的子集；<span class="req">R</span> = 该目标还需一个 RewardBackend。</p>
+    </div>
+
+    <div class="table-scroll" tabindex="0" role="region" aria-label="能力兼容矩阵">
+      <table class="matrix">
+        <caption class="sr-only">训练目标与模型的能力兼容矩阵</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="col-obj">目标 / 方法</th>
+            <th scope="col" class="col-req">奖励</th>
+            <th scope="col">klein</th>
+            <th scope="col">qwen_image</th>
+            <th scope="col" class="col-hl">qwen_image_edit_2x</th>
+            <th scope="col">hidream</th>
+            <th scope="col">sensenova</th>
+            <th scope="col">krea2</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">diffusionnft</span><span class="tag">RL</span></th>
+            <td class="col-req"><span class="req">R</span></td>
+            <td><span class="mk mk-no" aria-label="不可跑">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">flow_grpo</span><span class="tag">RL</span></th>
+            <td class="col-req"><span class="req">R</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">diffusion_opsd</span><span class="tag">RL</span></th>
+            <td class="col-req"><span class="req">R</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">edit_r1</span><span class="tag">RL</span></th>
+            <td class="col-req"><span class="req">R</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">flowmimic_opsd</span><span class="tag">蒸馏</span></th>
+            <td class="col-req"><span class="mk-none">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr class="row-sep">
+            <th scope="row" class="col-obj"><span class="oid mono">image_sft</span><span class="tag">SFT</span></th>
+            <td class="col-req"><span class="mk-none">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">image_dpo</span><span class="tag">DPO</span></th>
+            <td class="col-req"><span class="mk-none">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">image_opd</span><span class="tag">OPD</span></th>
+            <td class="col-req"><span class="req">R</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">latent_consistency</span><span class="tag">LCM</span></th>
+            <td class="col-req"><span class="mk-none">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+          <tr>
+            <th scope="row" class="col-obj"><span class="oid mono">on_policy_distill</span><span class="tag">OPD</span></th>
+            <td class="col-req"><span class="mk-none">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+            <td><span class="mk mk-no">·</span></td>
+            <td><span class="mk mk-yes">✓</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callouts">
+      <p class="callout">
+        <b>关键边界</b>：上表六个模型里只有 <code>krea2</code> 同时持有
+        <code>diffusion_alignment</code> 与 <code>image_training</code> 两种能力，因此也只有它能同时跑
+        RL 系与 SFT/DPO 系目标——其余五个模型各只占一系。要让另一个模型两边都能跑，
+        需为它的适配器补齐缺失能力并重新走完晋级。
+      </p>
+      <p class="callout callout-pending">
+        <b>零件已备，待注册</b>：AWM（优势加权匹配）与 RAM（REINFORCE 伴随匹配）
+        已随论文入库——契约卡、失败模式测试、数学实现齐备，但尚未注册为正式目标，
+        <b>现在还不能选它们训练</b>。注册并走完晋级后才进入本矩阵。
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="layers">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">零件分层</p>
+      <h2>四层，各层不知道别的层存在什么模型</h2>
+      <p>依赖方向单向向下，零件是纯函数：不 import 具体模型、不做 IO、可脱离 trainer 单测。</p>
+    </div>
+    <ol class="layers">
+      <li class="layer">
+        <span class="layer-n">4</span>
+        <div class="layer-body">
+          <h3>模型适配器 <span class="layer-count mono">6 个在此展示</span></h3>
+          <p>把"我的张量长什么样"翻译成公共接口：怎么准备 SFT 批次、DPO 批次、怎么预测速度场。</p>
+          <p class="layer-models mono">klein · qwen_image · qwen_image_edit_2x · hidream · sensenova · krea2</p>
+        </div>
+      </li>
+      <li class="layer">
+        <span class="layer-n">3</span>
+        <div class="layer-body">
+          <h3>奖励后端 <span class="layer-count mono">6 个在此展示</span></h3>
+          <p>把"好不好"变成数字：ArcFace 身份相似度、RationalRewards / Edit-R1 VLM 多维评分、HPSv3++、PickScore、OCR。</p>
+          <p class="layer-models mono">rational_rewards · hpsv3pp · pickscore · edit_r1_mllm · professional_ocr · identity</p>
+        </div>
+      </li>
+      <li class="layer">
+        <span class="layer-n">2</span>
+        <div class="layer-body">
+          <h3>训练目标 <span class="layer-count mono">10</span></h3>
+          <p>只做数学，不碰模型：SFT、DPO、OPD、LCM、On-Policy Distillation、DiffusionNFT、Flow-GRPO、DiffusionOPSD、FlowMimic-OPSD、Edit-R1。</p>
+        </div>
+      </li>
+      <li class="layer">
+        <span class="layer-n">1</span>
+        <div class="layer-body">
+          <h3>流与神经网络</h3>
+          <p>加噪、Euler/DPM2 求解器、WSD/余弦学习率、FSDP2、稀疏 LoRA-MoE——全仓库唯一一份约定。</p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="sec" id="video">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">演示</p>
+      <h2>53 秒看完零件怎么拼</h2>
+      <p>从"同一批数学抄四遍"到换零件：能力矩阵、compose 蓝图、晋级阶梯与上手命令。</p>
+    </div>
+    <figure class="video">
+      <video controls muted playsinline preload="metadata" poster="assets/promo_poster.png">
+        <source src="assets/promo.mp4" type="video/mp4">
+        你的浏览器不支持内联视频，可在 <a href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>查看示例脚本。
+      </video>
+      <figcaption>YoYo 宣传片 · 53 秒 · 与仓库示例同源</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="promotion">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">诚实边界</p>
+      <h2>源码可用 ≠ GPU 就绪</h2>
+      <p>任何 baseline 从"能构造"到"能引用"，必须逐级拿 receipt，不可跳级。每级都有明确的失败模式要抓，跳过一级的结论不可信。</p>
+    </div>
+    <ol class="ladder">
+      <li class="rung"><span class="rung-n mono">1</span><div><h3>CPU preflight</h3><p>组件可构造、契约成立</p></div></li>
+      <li class="rung"><span class="rung-n mono">2</span><div><h3>GPU no-update</h3><p>前向数值有限、显存可控</p></div></li>
+      <li class="rung"><span class="rung-n mono">3</span><div><h3>one-update</h3><p>一次完整更新，梯度非 nan</p></div></li>
+      <li class="rung"><span class="rung-n mono">4</span><div><h3>checkpoint readback</h3><p>写出读回，SHA-256 一致</p></div></li>
+      <li class="rung"><span class="rung-n mono">5</span><div><h3>冻结评估</h3><p>固定权重评估，登记 receipt</p></div></li>
+    </ol>
+    <p class="ladder-foot">
+      当前所有目标都停在第一级之前的部分：<code>launch_enabled=false</code>、<code>promotion_qualified=false</code>。
+      状态从 WebTrainer 与 receipts 读，不从源码树状态文档读。
+    </p>
+  </div>
+</section>
+
+<section class="sec" id="start">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">上手</p>
+      <h2>五分钟跑通，纯 CPU 无需权重</h2>
+      <p>示例全部由单测守护，README 里的每个数字与代码同源，由文档同步测试强制一致。</p>
+    </div>
+    <div class="start-grid">
+      <ol class="steps">
+        <li><b>安装</b> — <code>pip install -e .</code>（Python 3.10–3.13）</li>
+        <li><b>看零件</b> — <code>mmtrain registry list</code> 列出全部模型 / 目标 / 奖励插件</li>
+        <li><b>生成蓝图</b> — <code>mmtrain compose</code> 问答式给出指标、可视化与晋级建议</li>
+        <li><b>跑示例</b> — 从 SFT 到 RL 八个示例，各自返回真实指标</li>
+      </ol>
+      <div class="code-block">
+        <pre><code><span class="c">$</span> git clone https://github.com/jackeyloveseven/yoyo
+<span class="c">$</span> cd yoyo &amp;&amp; pip install -e .
+<span class="c">$</span> pytest tests/v2 -q          <span class="c"># 94 passed</span>
+<span class="c">$</span> mmtrain compose --model qwen_image_edit_2x \
+    --objective image_dpo --reward none --output blueprint.md</code></pre>
+        <p class="code-note">蓝图会列出该目标应监控的全部指标、该做的图与下一步晋级动作——可直接贴进实验记录。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="sourcing">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">吸收体系</p>
+      <h2>论文到零件，有一条标准路径</h2>
+      <p>上游雷达监测 8 个活跃项目，import SOP 定义准入门槛与三个人工把关点。已完整走通两个案例。</p>
+    </div>
+    <div class="flow">
+      <div class="flow-step"><b>监测</b><span>agent 拉上游变更、列候选</span></div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-step"><b>评估</b><span>agent 读代码写摘要</span></div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-step"><b>吸收</b><span>按架构门重写为零件</span></div>
+      <div class="flow-arrow" aria-hidden="true">→</div>
+      <div class="flow-step"><b>沉淀</b><span>ADR + 契约卡 + 测试</span></div>
+    </div>
+    <div class="cases">
+      <article class="case">
+        <h3>LCM 少步蒸馏 <span class="case-badge">已吸收</span></h3>
+        <p>相邻 ODE 步的自举一致性，无需教师多步 rollout。数学对照 SimpleTuner 实现，未 vendor 任何框架代码。</p>
+      </article>
+      <article class="case">
+        <h3>On-Policy Distillation <span class="case-badge">已吸收</span></h3>
+        <p>学生一步预测对齐教师多步 Euler 轨迹终点。约 30 行纯逻辑，与 LCM 互补，ADR-0005 记录三处有意差异。</p>
+      </article>
+      <article class="case case-not">
+        <h3>Miles 异步 rollout <span class="case-badge case-badge-no">暂不吸收</span></h3>
+        <p>三个支柱全深耦合在分布式系统里，抽不出独立纯函数零件。整体搬入等于推倒轻量 engine 重写——记录结论，不强吸。</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="compare">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">定位</p>
+      <h2>和 AI-Toolkit 的区别</h2>
+      <p>两者目标不同，不是替代关系：想快速给 FLUX 训个 LoRA、不想碰代码，AI-Toolkit 更顺手；想在多个模型上系统地做后训练、蒸馏、RL 研究，且要求代码可测、可复用、不重复，YoYo 更合适。</p>
+    </div>
+    <div class="table-scroll">
+      <table class="compare">
+        <thead>
+          <tr><th scope="col">维度</th><th scope="col">AI-Toolkit</th><th scope="col" class="col-yoyo">YoYo</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">组织方式</th><td>配置驱动：往现成 trainer 框架里填参数</td><td class="col-yoyo">零件驱动：注册表 + 适配器 + 纯函数，自己拼装</td></tr>
+          <tr><th scope="row">核心文件</th><td>训练进程是超大类（SDTrainer.py 约 129KB）</td><td class="col-yoyo">零件是小函数，单文件强制 ≤800 行（质量门拦截）</td></tr>
+          <tr><th scope="row">加新算法</th><td>在 trainer 的扩展点内开发</td><td class="col-yoyo">写一个独立 loss 函数丢进 <code>algorithms/</code>，注册一行</td></tr>
+          <tr><th scope="row">加新模型</th><td>用它的 model registry 接入</td><td class="col-yoyo">写 25 行 <code>BaseModelAdapter</code>，立刻用全部算法</td></tr>
+          <tr><th scope="row">RL / DPO</th><td>main 分支未见内置实现</td><td class="col-yoyo">一等公民：10 个目标 + 7 个奖励后端</td></tr>
+          <tr><th scope="row">质量保障</th><td>社区驱动、迭代快，CI 不跑测试</td><td class="col-yoyo">每次提交强制过 AST 门 + 94 数值不变量测试 + 文档门</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="sec sec-alt" id="qwen">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">新模型</p>
+      <h2>Qwen-Image-Edit 2.x：1–3 张控制图多图编辑</h2>
+      <p>2509/2511 世代多图编辑模型，与原版 Qwen-Image 同 MMDiT 底座，差异在多控制流的拼接。</p>
+    </div>
+    <div class="table-scroll">
+      <table class="compare">
+        <thead>
+          <tr><th scope="col">维度</th><th scope="col"><span class="mono">qwen_image</span>（原版）</th><th scope="col" class="col-yoyo"><span class="mono">qwen_image_edit_2x</span>（2.x）</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">控制图</th><td>1 张</td><td class="col-yoyo"><b>1–3 张</b>（2509+ 图像拼接训练）</td></tr>
+          <tr><th scope="row">diffusers 管线</th><td><span class="mono">QwenImageEditPipeline</span></td><td class="col-yoyo"><span class="mono">QwenImageEditPlusPipeline</span></td></tr>
+          <tr><th scope="row">文本编码器 / VAE</th><td>Qwen2.5-VL / Wan2.1-VAE</td><td class="col-yoyo">相同（2.x 与原版共享）</td></tr>
+          <tr><th scope="row">可跑目标</th><td>5 个监督系目标</td><td class="col-yoyo">同样 5 个：image_sft / image_dpo / image_opd / latent_consistency / on_policy_distill</td></tr>
+          <tr><th scope="row">晋级状态</th><td>源码可用</td><td class="col-yoyo">源码可用；LoRA 靶点与 VAE 归一化常数需 GPU 首次晋级时核对</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sec-foot">
+      防重影契约：<code>img_shapes</code> 里 noisy 流与每个 control 流各自记录
+      <code>(1, H//2, W//2)</code>——跨流共用同一 tuple 会让 MSRoPE 给两段相同空间位置，
+      跨注意力无法区分（invoke-ai#9155 的教训）。超出 1–3 张控制图直接 <code>ValueError</code>。
+    </p>
+  </div>
+</section>
+
+<section class="sec" id="learn">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="sec-eyebrow">入门</p>
+      <h2>给刚接触后训练的人</h2>
+      <p>导读从"<code>x_t</code> 是什么"讲起，不假设你看过论文。六个阶段，从跑通测试到能导入新方法。</p>
+    </div>
+    <div class="learn-grid">
+      <div class="learn-card">
+        <span class="learn-n mono">1</span>
+        <h3>跑通</h3>
+        <p><code>pytest tests/v2</code> 全绿；跑 <code>train_sft_edit.py</code> 看 loss 下降。</p>
+      </div>
+      <div class="learn-card">
+        <span class="learn-n mono">2</span>
+        <h3>读懂约定</h3>
+        <p>读 <code>nn/flow.py</code> 的加噪与求解；用 compose 生成两份蓝图。</p>
+      </div>
+      <div class="learn-card">
+        <span class="learn-n mono">3</span>
+        <h3>读懂一个方法</h3>
+        <p>读 LCM 契约卡 + 实现 + 示例 + 测试，能说清它和 DMD 的区别。</p>
+      </div>
+      <div class="learn-card">
+        <span class="learn-n mono">4</span>
+        <h3>改一个数值</h3>
+        <p>改 <code>huber_c</code> / <code>num_distill_steps</code>，重跑并解释指标变化。</p>
+      </div>
+      <div class="learn-card">
+        <span class="learn-n mono">5</span>
+        <h3>导入新方法</h3>
+        <p>按 intake SOP 走完人机三个把关点，导入一个新损失。</p>
+      </div>
+      <div class="learn-card">
+        <span class="learn-n mono">6</span>
+        <h3>改架构</h3>
+        <p>读全部 6 篇 ADR，理解每个决策的边界，能提出 ADR-0007。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec cta-final" id="cta">
+  <div class="wrap">
+    <h2>换零件，不换整套脚本</h2>
+    <p>接入一个新模型只要 25 行适配器，就能用全部现成的损失函数和求解器。</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>
+      <a class="btn btn-ghost" href="https://github.com/jackeyloveseven/yoyo/blob/main/docs/onboarding.md">入门导读</a>
+      <a class="btn btn-ghost" href="https://github.com/jackeyloveseven/yoyo/blob/main/docs/models/README.md">模型能力矩阵</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div>
+      <p class="foot-brand">YoYo <span class="foot-exp">You Only Yield Once</span></p>
+      <p class="foot-note">扩散/流匹配后训练的开源学术基线 · MIT License</p>
+    </div>
+    <nav class="foot-nav" aria-label="页脚导航">
+      <a href="#top">回到顶部</a>
+      <a href="https://github.com/jackeyloveseven/yoyo">GitHub</a>
+      <a href="https://github.com/jackeyloveseven/yoyo/issues">Issues</a>
+      <a href="https://github.com/jackeyloveseven/yoyo/blob/main/docs/adr/README.md">ADR</a>
+    </nav>
   </div>
 </footer>
+
+</body>
+</html>
