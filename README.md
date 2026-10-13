@@ -156,8 +156,8 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 
 ### 主线一:用好现有零件
 
-- [x] 6 个自包含示例(SFT / DPO / 蒸馏 / RL / 自定义模型),CPU 可跑
-- [ ] 每个示例补一页"实验指标 + 可视化 + 下一步建议"卡(见主线二)
+- [x] 7 个自包含示例(SFT / DPO / 蒸馏 / RL×2 / LCM / 自定义模型),CPU 可跑
+- [x] 每个示例补"实验指标 + 可视化 + 下一步"卡(见 [`examples/README.md`](examples/README.md))
 
 ### 主线二:按需组建训练脚本(交互式)
 
@@ -165,21 +165,22 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 > (loss 曲线 / KL / 奖励分布)、**需要哪些可视化**(采样网格 / 奖励曲线)、
 > **下一步该做什么**(晋级 / 调参 / 评估)。
 
-- [ ] `mmtrain compose` 交互向导骨架:选模型 + 目标 + 数据 → 产出训练脚本
-- [ ] 指标与可视化推荐器:按所选目标,列出应监控的指标与对应图表
-- [ ] 下一步指示建议器:依据晋级阶梯(见 [`USAGE.md`](USAGE.md))给出后续动作
+- [x] `mmtrain compose` 交互向导:选模型 → 兼容目标 → reward → 产出训练蓝图
+- [x] 指标与可视化推荐:按所选目标/reward,列出应监控的指标与对应图表
+- [x] 下一步指示:按晋级阶梯给出后续动作;`--output` 落盘 json/md 蓝图
 
 ### 主线三:持续导入新组件
 
 - [x] 吸收体系与 SOP([`docs/sourcing/`](docs/sourcing/README.md))
-- [ ] 用 `import-method` 模板导入第一个新方法(候选:Miles 的训练吞吐优化)
-- [ ] 上游雷达首轮核查:更新 `docs/sourcing/README.md` 各行的"最近一次核查"
+- [x] 第一个完整走 SOP 的方法:LCM 少步蒸馏(`algorithms/latent_consistency/`,示例 7)
+- [ ] 上游雷达首轮核查:已核 4/8(Miles/Diffusers/Musubi/SimpleTuner),余 SGLang/vLLM/DiffSynth
 
 ### 更新流程与文档系统
 
 - [x] 上游雷达 + 评估标准 + 导入 SOP 固化成文
+- [x] `docs/adr/` 首批 4 篇 ADR(注册表/质量门/吸收原则/compose 边界)
+- [x] 6 个模型能力卡 + 注册表同步测试([`docs/models/`](docs/models/README.md))
 - [ ] 定期核查节奏:定一个触发规则(如每月 / 上游发版时重看雷达表)
-- [ ] 文档结构性缺口:补 `docs/adr/` 首批 ADR、给 6 个已注册模型各补一页能力卡
 
 ---
 
