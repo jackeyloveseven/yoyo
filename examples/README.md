@@ -23,3 +23,17 @@ Each script can be run standalone (`PYTHONPATH=src python examples/<name>.py`) t
 5. [`train_rl_flow_grpo.py`](./train_rl_flow_grpo.py) — Trajectory RL with `sde_step_with_logprob`, `group_relative_advantages`, `ppo_clipped_surrogate`, and `diffusion_opsd_fitting_loss`.
 6. [`custom_model_and_infer.py`](./custom_model_and_infer.py) — Onboarding a brand-new model architecture via `BaseModelAdapter`, registering it in `PluginRegistry`, and running multi-step `euler_flow_step` / `dpm2_flow_step` inference.
 7. [`train_lcm_distill.py`](./train_lcm_distill.py) — Latent Consistency Model few-step distillation: online student + EMA target network, adjacent-step bootstrap consistency via `lcm_consistency_loss`, `flow_sample`, and `euler_flow_step`.
+
+## Experiment Cards
+
+Each card lists what the example actually returns (verified against the source), what to visualize, and the next qualification step. Run `mmtrain compose` to generate a blueprint with these same fields for any model/objective/reward combination.
+
+| Example | Metrics Returned | Visualizations | Next Step |
+| :--- | :--- | :--- | :--- |
+| `train_sft_edit` | `initial_loss`, `final_loss`, `last_lr` | loss curve vs. step | GPU no-update → one-update |
+| `train_dpo_preference` | `loss`, `dpo_loss`, `implicit_accuracy` | win/lose sample grid + accuracy curve | checkpoint readback |
+| `train_distill_opd_dmd` | `total_loss`, `opd_loss`, `dmd_loss`, `norm_guard_ratio`, `repa_loss` | student vs. teacher sample grid; norm_ratio curve (target ~1.0) | frozen eval vs. teacher |
+| `train_rl_diffusionnft` | `total_loss`, `policy_loss`, `kl_loss`, `identity_loss`, `mean_optimality` | reward curve (optimality); identity alignment heatmap | frozen eval with held-out prompts |
+| `train_rl_flow_grpo` | `total_loss`, `ppo_policy_loss`, `ppo_kl_loss`, `opsd_loss` | PPO loss curve + reward distribution histogram | frozen eval + ablation vs. no-OPSD |
+| `train_lcm_distill` | `total_loss`, `raw_huber_mean`, `consistency_rms`, `clean_online_shape`, `sigma_curr_range` | 1-step vs. multi-step sample grid; consistency_rms curve (should decrease) | few-step sampling quality vs. teacher |
+| `custom_model_and_infer` | inference output shape | generated sample grid | register adapter in `PluginRegistry` → `mmtrain compose` |
