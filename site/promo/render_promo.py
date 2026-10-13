@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """YoYo 宣传视频渲染器(PIL 逐帧绘制 + ffmpeg 合成)。
 
-产出 1080p / 30fps / 无音轨 MP4(约 54 秒)与海报帧:
+产出 1080p / 30fps / 带配乐 MP4(10 分镜 73.5 秒)与海报帧:
 
     python3 render_promo.py                       # 全片渲染 + 编码
     python3 render_promo.py --frame hero:0.8     # 单帧调试,输出 PNG
 
 分镜:hero(品牌) → pain(传统脚本复制) → parts(零件拆解) → compose(交互演示)
-→ numbers(真实数字) → baseline(学术基线) → quickstart(CPU 跑通) → cta。
+→ flow(流匹配概念) → numbers(真实数字) → gates(五道质量门) → baseline(学术基线)
+→ quickstart(CPU 跑通) → cta。配乐为程序化合成(见 build_audio)。
 
 营销红线:FireRed 不出现;Qwen 主打 Edit 2.x;AWM/RAM 不宣传;
 "源码可用 ≠ GPU 就绪" 的诚实边界必须可见。所有数字与主仓库注册表同源。
@@ -251,7 +252,7 @@ def sc_hero(img, draw, t01: float) -> None:
         draw.text((W / 2, H - 88), url, font=FONTS.mono(28), fill=color, anchor="mm")
 
 
-@scene("pain", 6.5)
+@scene("pain", 7.5)
 def sc_pain(img, draw, t01: float) -> None:
     draw_background(img, draw, t01 * 1.5, seed=1)
     title(draw, "传统做法:每个任务,复制一整套脚本", smooth(t01 * 10))
@@ -415,7 +416,118 @@ def sc_compose(img, draw, t01: float) -> None:
     caption(draw, "诚实边界:源码可用 ≠ GPU 就绪,蓝图含晋级阶梯", smooth(t01 * 8 - 0.75))
 
 
-@scene("numbers", 7.0)
+def _draw_velocity_arrows(draw, noise: np.ndarray, x0: np.ndarray, box, appear_base: float) -> None:
+    """在 box 内画 v = noise - x_0 的下采样箭头场(逐像素 2 维真实方向)。
+
+    appear_base 是总体入场进度(0..1),箭头按行优先序错峰浮现;
+    长度随模长缩放(强速度 → 长箭头)。
+    """
+    step = 70
+    S = x0.shape[0]
+    n = S // step
+    vx = (noise - x0)[::step, ::step, 0]
+    vy = (noise - x0)[::step, ::step, 1]
+    speed = np.sqrt(vx * vx + vy * vy)
+    px, py = box
+    total_arrows = n * n
+    for iy in range(n):
+        for ix in range(n):
+            appear = smooth((appear_base * total_arrows - (iy * n + ix)) * 0.5)
+            if appear <= 0.05:
+                continue
+            sp = max(speed[iy, ix], 1e-6)
+            ux, uy = vx[iy, ix] / sp, vy[iy, ix] / sp
+            bx = px + ix * step + step / 2
+            by = py + iy * step + step / 2
+            length = 26 * (0.55 + 0.45 * min(1.0, sp / 120)) * appear
+            ex, ey = bx + ux * length, by + uy * length
+            col = mix(PALETTE["bg"], PALETTE["accent"], appear * 0.9)
+            draw.line([bx, by, ex, ey], fill=col, width=2)
+            ang = math.atan2(ey - by, ex - bx)
+            for da in (2.6, -2.6):
+                hx = ex + 9 * math.cos(ang + da)
+                hy = ey + 9 * math.sin(ang + da)
+                draw.line([ex, ey, hx, hy], fill=col, width=2)
+
+
+@scene("flow", 10.0)
+def sc_flow(img, draw, t01: float) -> None:
+    """核心概念可视化:x_t=(1-t)x_0+t·noise 的真实混合过程。
+
+    x_0 是 2 通道结构化图案场(通道 0 同心圆波纹,通道 1 放射波纹),噪声是同形
+    2 通道高斯场——v = noise - x_0 逐像素即 2 维速度向量,右图箭头是真实方向,
+    不是装饰。t 前半程 0→1(淹没),后半程 1→0(找回),画面即公式本身。
+    """
+    draw_background(img, draw, t01 * 1.1, seed=8)
+    title(draw, "一条约定贯穿全仓库:x_t = (1-t)·x_0 + t·noise", smooth(t01 * 10))
+
+    S = 560  # 可视化方形画布边长
+    gx, gy = W / 2 - S - 90, 300  # 左图:混合场 x_t
+    px = W / 2 + 90  # 右图 x 起点(y 与左图同)
+
+    # --- 干净图 x_0:2 通道图案场(确定性) ---
+    rng = np.random.default_rng(20261013)
+    yy, xx = np.mgrid[0:S, 0:S].astype(np.float32)
+    cx, cy = S / 2, S / 2
+    r = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2)
+    theta = np.arctan2(yy - cy, xx - cx)
+    ring_ch = 127 + 128 * np.cos(r / 18)  # 通道 0:同心圆
+    ray_ch = 127 + 128 * np.cos(theta * 6 + r / 90)  # 通道 1:6 重放射
+    x0 = np.stack([ring_ch, ray_ch], axis=-1).astype(np.float32)  # (S,S,2)
+    noise = rng.normal(128, 255 * 0.30, (S, S, 2)).astype(np.float32)
+
+    # --- 前半程加噪 0→1,后半程去噪 1→0 ---
+    phase = t01 * 2.0
+    t_val = smooth(min(phase, 1.0)) if phase < 1.3 else smooth(2.6 - phase)
+    field = (1 - t_val) * x0 + t_val * noise  # (S,S,2):x_t
+
+    # 左图:两通道的均值渲染成灰度场(伪 RGB)
+    gray = field.mean(axis=-1, keepdims=True)
+    field_rgb = np.repeat(gray, 3, axis=-1)
+
+    k_vis = smooth(t01 * 8)
+    if k_vis > 0:
+        field_img = Image.fromarray(np.uint8(np.clip(field_rgb, 0, 255))).convert("RGBA")
+        mask = Image.new("L", field_img.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle([0, 0, S - 1, S - 1], 20, fill=int(255 * k_vis))
+        img.paste(field_img, (int(gx), int(gy)), mask)
+
+    # 左图标签与 t 值
+    k_lbl = smooth(t01 * 8 - 0.2)
+    if k_lbl > 0:
+        col = mix(PALETTE["bg"], PALETTE["fg"], k_lbl)
+        draw.text(
+            (gx + S / 2, gy + S + 44),
+            "x_t(混合场)",
+            font=FONTS.cjk(30, "Bold"),
+            fill=col,
+            anchor="mm",
+        )
+        draw.text(
+            (gx + S / 2, gy + S + 92),
+            f"t = {t_val:.2f}",
+            font=FONTS.mono(34, bold=True),
+            fill=mix(PALETTE["bg"], PALETTE["accent"], k_lbl),
+            anchor="mm",
+        )
+
+    # --- 右图:速度场 v = noise - x_0(逐像素 2 维向量,下采样箭头) ---
+    k_arrow = smooth(t01 * 8 - 0.45)
+    if k_arrow > 0:
+        _draw_velocity_arrows(draw, noise, x0, (int(px), int(gy)), k_arrow)
+        lab_col = mix(PALETTE["bg"], PALETTE["fg"], k_arrow)
+        draw.text(
+            (px + S / 2, gy + S + 44),
+            "v = noise - x_0(要学的方向)",
+            font=FONTS.cjk(30, "Bold"),
+            fill=lab_col,
+            anchor="mm",
+        )
+
+    caption(draw, "模型要学的:给我 (x_t, t),告诉我指向干净样本的方向", smooth(t01 * 8 - 0.9))
+
+
+@scene("numbers", 8.0)
 def sc_numbers(img, draw, t01: float) -> None:
     draw_background(img, draw, t01 * 1.1, seed=4)
     title(draw, "零件清单(每个数字与代码同源)", smooth(t01 * 10))
@@ -466,7 +578,67 @@ def sc_numbers(img, draw, t01: float) -> None:
     caption(draw, cap, smooth(t01 * 8 - 0.9))
 
 
-@scene("baseline", 8.0)
+@scene("gates", 7.0)
+def sc_gates(img, draw, t01: float) -> None:
+    """五道质量门可视化:每道门在提交时强制执行(仓库真实差异化卖点)。"""
+    draw_background(img, draw, t01 * 0.9, seed=9)
+    title(draw, "每次提交,五道门全绿才放行", smooth(t01 * 10))
+    gates = [
+        ("ruff check / format", "风格与格式,零放纵"),
+        ("check_v2_quality", "AST 门:行数/复杂度/去重"),
+        ("check_structure", "依赖方向与组件存在"),
+        ("check_docs", "断链/重复/文档预算"),
+        ("pytest tests/v2", "95 个数值不变量"),
+    ]
+    bw, bh = 1000, 88
+    y0 = 220
+    for i, (name, desc) in enumerate(gates):
+        kk = stagger(t01, i, 0.06)
+        if kk <= 0:
+            continue
+        x = W / 2 - bw / 2 + (1 - kk) * 60
+        y = y0 + i * (bh + 18)
+        panel(
+            draw,
+            [x, y, x + bw, y + bh],
+            14,
+            fill=mix(PALETTE["bg"], PALETTE["panel"], kk),
+            outline=mix(PALETTE["bg"], PALETTE["accent2"], kk * 0.85),
+            width=2,
+        )
+        # 通过标记:圆点 + 勾(绿灯 = --mark 色)
+        check_col = mix(PALETTE["bg"], PALETTE["accent2"], kk)
+        cx, cy = x + 44, y + bh / 2
+        draw.ellipse([cx - 17, cy - 17, cx + 17, cy + 17], outline=check_col, width=3)
+        draw.line([cx - 8, cy, cx - 2, cy + 7], fill=check_col, width=3)
+        draw.line([cx - 2, cy + 7, cx + 9, cy - 8], fill=check_col, width=3)
+        draw.text(
+            (x + 88, y + bh / 2),
+            name,
+            font=FONTS.mono(28, bold=True),
+            fill=mix(PALETTE["bg"], PALETTE["fg"], kk),
+            anchor="lm",
+        )
+        draw.text(
+            (x + 88 + 400, y + bh / 2),
+            desc,
+            font=FONTS.cjk(25),
+            fill=mix(PALETTE["bg"], PALETTE["muted"], kk),
+            anchor="lm",
+        )
+    k_hook = smooth(t01 * 8 - 0.7)
+    if k_hook > 0:
+        note = "文档同步测试让 README 的能力矩阵永不脱离注册表"
+        draw.text(
+            (W / 2, y0 + 5 * (bh + 18) + 20),
+            note,
+            font=FONTS.cjk(30, "Bold"),
+            fill=mix(PALETTE["bg"], PALETTE["accent"], k_hook),
+            anchor="mm",
+        )
+
+
+@scene("baseline", 9.0)
 def sc_baseline(img, draw, t01: float) -> None:
     draw_background(img, draw, t01 * 1.0, seed=5)
     title(draw, "不止是工具箱 —— 扩散后训练的开源学术基线", smooth(t01 * 10))
@@ -661,7 +833,55 @@ def render_frame_at(row, frame: int) -> Image.Image:
     return img
 
 
-def encode(mp4: Path, table, limit_frames: int | None = None) -> None:
+def build_audio(track: Path, table) -> None:
+    """程序化配乐:低音 pad(整片) + 分镜切换琶音打点 + 首尾渐变。
+
+    无外部音频文件;正弦波叠加,PCM wav 写盘,encode 阶段由 ffmpeg 转 AAC。
+    基调 A(55/110Hz)+ 纯五度;每个分镜起点(除首帧)一个 A 大调琶音短打点。
+    """
+    import wave
+
+    rate = 44100
+    total_frames = sum(end - start for _, start, end, _ in table)
+    n_samples = total_frames * rate // FPS  # 音频采样数 = 视频时长 × 采样率
+    t = np.arange(n_samples) / rate
+    # 和声 pad:A1 + A2 + E3,随时间轻微起伏
+    pad = (
+        0.30 * np.sin(2 * np.pi * 55 * t)
+        + 0.22 * np.sin(2 * np.pi * 110 * t + 0.5 * np.sin(2 * np.pi * 0.1 * t))
+        + 0.16 * np.sin(2 * np.pi * 164.8 * t)
+    )
+    pad *= 0.6 + 0.4 * np.sin(2 * np.pi * 0.07 * t)  # 呼吸感
+    # 分镜起点琶音(A4-C#5-E5,各 0.22s,指数衰减)—— start 是帧号,换算成秒
+    for _, start, _, _ in table:
+        if start == 0:
+            continue  # 开头不加打点,pad 从零渐入
+        t0 = start / FPS
+        for i, freq in enumerate((440.0, 554.4, 659.3)):
+            onset = t0 + i * 0.05
+            n0 = int(onset * rate)
+            n1 = min(n_samples, n0 + int(0.22 * rate))
+            if n0 >= n_samples:
+                continue
+            seg = np.arange(n1 - n0) / rate
+            env = np.exp(-seg * 9)
+            pad[n0:n1] += 0.16 * np.sin(2 * np.pi * freq * seg) * env
+    # 全片首 1.2s 淡入、末 2.5s 淡出
+    fade_in = int(1.2 * rate)
+    fade_out = int(2.5 * rate)
+    env = np.ones(n_samples)
+    env[:fade_in] = np.linspace(0.0, 1.0, fade_in)
+    env[-fade_out:] = np.linspace(1.0, 0.0, fade_out)
+    audio = np.clip(pad * env * 0.9, -0.98, 0.98)
+    pcm = (audio * 32767).astype(np.int16)
+    with wave.open(str(track), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(rate)
+        handle.writeframes(pcm.tobytes())
+
+
+def encode(mp4: Path, table, limit_frames: int | None = None, audio: Path | None = None) -> None:
     total = sum(end - start for _, start, end, _ in table)
     if limit_frames:
         total = min(total, limit_frames)
@@ -678,6 +898,10 @@ def encode(mp4: Path, table, limit_frames: int | None = None) -> None:
         str(FPS),
         "-i",
         "-",
+    ]
+    if audio is not None:
+        cmd += ["-i", str(audio)]
+    cmd += [
         "-c:v",
         "libx264",
         "-preset",
@@ -686,10 +910,10 @@ def encode(mp4: Path, table, limit_frames: int | None = None) -> None:
         "20",
         "-pix_fmt",
         "yuv420p",
-        "-movflags",
-        "+faststart",
-        str(mp4),
     ]
+    if audio is not None:
+        cmd += ["-c:a", "aac", "-b:a", "96k", "-shortest"]
+    cmd += ["-movflags", "+faststart", str(mp4)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
     assert proc.stdin is not None
     for i in range(total):
@@ -699,7 +923,8 @@ def encode(mp4: Path, table, limit_frames: int | None = None) -> None:
             print(f"  frame {i}/{total}", flush=True)
     proc.stdin.close()
     proc.wait()
-    print(f"encoded {mp4} ({total} frames, {total / FPS:.1f}s)")
+    suffix = " (+audio)" if audio is not None else ""
+    print(f"encoded {mp4} ({total} frames, {total / FPS:.1f}s){suffix}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -710,6 +935,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--poster", type=Path, default=ROOT.parent / "assets" / "promo_poster.png")
     parser.add_argument("--limit", type=int, help="只渲染前 N 帧(冒烟测试)")
     parser.add_argument("--poster-scene", default="numbers:0.72", help="海报取帧(scene:t01)")
+    parser.add_argument("--no-audio", action="store_true", help="不合成程序化配乐")
     args = parser.parse_args(argv)
 
     table = scene_table()
@@ -732,7 +958,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     args.mp4.parent.mkdir(parents=True, exist_ok=True)
-    encode(args.mp4, table, args.limit)
+    audio = None
+    if not args.no_audio:
+        import tempfile
+
+        audio = Path(tempfile.mkdtemp(prefix="yoyo_promo_")) / "track.wav"
+        build_audio(audio, table)
+        print(f"built audio track {audio}")
+    encode(args.mp4, table, args.limit, audio=audio)
 
     name, _, t01 = args.poster_scene.partition(":")
     for row in table:

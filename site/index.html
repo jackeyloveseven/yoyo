@@ -74,7 +74,7 @@
     <div class="stat" role="listitem"><span class="num">7</span><span class="lbl">奖励后端</span></div>
     <div class="stat" role="listitem"><span class="num">6</span><span class="lbl">模型适配器（本页展示）</span></div>
     <div class="stat" role="listitem"><span class="num">8</span><span class="lbl">CPU 端到端示例</span></div>
-    <div class="stat" role="listitem"><span class="num">94</span><span class="lbl">测试通过</span></div>
+    <div class="stat" role="listitem"><span class="num">95</span><span class="lbl">测试通过</span></div>
     <div class="stat" role="listitem"><span class="num">6</span><span class="lbl">架构决策 ADR</span></div>
   </div>
 </header>
@@ -104,7 +104,7 @@
           <li>加噪 <code>x_t=(1−t)x₀+t·noise</code>、Euler/DPM2 写死在基座层，全仓库共享</li>
           <li>新算法 = 一个独立 loss 函数 + 注册一行</li>
           <li>新模型 = 25 行 <code>BaseModelAdapter</code>，立刻用全部目标</li>
-          <li>94 个数值不变量测试守 detach 边界、零方差组、FP32 路径</li>
+          <li>95 个数值不变量测试守 detach 边界、零方差组、FP32 路径</li>
         </ul>
       </div>
     </div>
@@ -343,15 +343,15 @@
   <div class="wrap">
     <div class="sec-head">
       <p class="sec-eyebrow">演示</p>
-      <h2>53 秒看完零件怎么拼</h2>
-      <p>从"同一批数学抄四遍"到换零件：能力矩阵、compose 蓝图、晋级阶梯与上手命令。</p>
+      <h2>73 秒看完零件怎么拼</h2>
+      <p>从流匹配约定 x_t=(1-t)·x_0+t·noise 的实时混合演示，到五道质量门、能力矩阵、compose 蓝图与上手命令——十个分镜，程序化绘制与配乐，数字与仓库同源。</p>
     </div>
     <figure class="video">
-      <video controls muted playsinline preload="metadata" poster="assets/promo_poster.png">
+      <video controls playsinline preload="metadata" poster="assets/promo_poster.png">
         <source src="assets/promo.mp4" type="video/mp4">
         你的浏览器不支持内联视频，可在 <a href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>查看示例脚本。
       </video>
-      <figcaption>YoYo 宣传片 · 53 秒 · 与仓库示例同源</figcaption>
+      <figcaption>YoYo 宣传片 · 73 秒 · 流匹配概念 + 五道质量门 + compose 蓝图（含配乐）</figcaption>
     </figure>
   </div>
 </section>
@@ -394,7 +394,7 @@
       <div class="code-block">
         <pre><code><span class="c">$</span> git clone https://github.com/jackeyloveseven/yoyo
 <span class="c">$</span> cd yoyo &amp;&amp; pip install -e .
-<span class="c">$</span> pytest tests/v2 -q          <span class="c"># 94 passed</span>
+<span class="c">$</span> pytest tests/v2 -q          <span class="c"># 95 passed</span>
 <span class="c">$</span> mmtrain compose --model qwen_image_edit_2x \
     --objective image_dpo --reward none --output blueprint.md</code></pre>
         <p class="code-note">蓝图会列出该目标应监控的全部指标、该做的图与下一步晋级动作——可直接贴进实验记录。</p>
@@ -454,7 +454,7 @@
           <tr><th scope="row">加新算法</th><td>在 trainer 的扩展点内开发</td><td class="col-yoyo">写一个独立 loss 函数丢进 <code>algorithms/</code>，注册一行</td></tr>
           <tr><th scope="row">加新模型</th><td>用它的 model registry 接入</td><td class="col-yoyo">写 25 行 <code>BaseModelAdapter</code>，立刻用全部算法</td></tr>
           <tr><th scope="row">RL / DPO</th><td>main 分支未见内置实现</td><td class="col-yoyo">一等公民：10 个目标 + 7 个奖励后端</td></tr>
-          <tr><th scope="row">质量保障</th><td>社区驱动、迭代快，CI 不跑测试</td><td class="col-yoyo">每次提交强制过 AST 门 + 94 数值不变量测试 + 文档门</td></tr>
+          <tr><th scope="row">质量保障</th><td>社区驱动、迭代快，CI 不跑测试</td><td class="col-yoyo">每次提交强制过 AST 门 + 95 数值不变量测试 + 文档门</td></tr>
         </tbody>
       </table>
     </div>
