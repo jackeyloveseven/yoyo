@@ -27,7 +27,7 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 
 | 上游 | 我们关注它什么 | 最近一次核查 |
 | :--- | :--- | :--- |
-| [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 待核查 |
+| [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 已核查 2026-10-13,**OPD 值得吸收**(见下) |
 | [Musubi Tuner](https://github.com/kohya-ss/musubi-tuner) | 视频模型 LoRA(HunyuanVideo/Wan2.x/FramePack/MiniMax-H3)、文本编码器缓存的坑 | 已核查 2026-10-12,记教训不吸收(见下) |
 | [SimpleTuner](https://github.com/bghira/SimpleTuner) | **蒸馏方法注册表范式、LCM 参考实现** | 已核查 2026-10-12,印证架构 + LCM 参考(见下) |
 | [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 待核查 |
@@ -88,6 +88,21 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 - **测试范式参考**:其 `tests/` 按方法分文件(`test_ace_step_*.py` 等)+ 多 runner
   脚本,佐证 SOP"每方法一组失败模式测试"的做法。
 - **决策**:作为架构印证与 LCM 数学参考记录;其框架代码不吸收。
+
+### DiffSynth 核查结论(2026-10-13,OPD 值得吸收)
+
+- **训练目标覆盖**:SFT(flow-matching MSE)+ LoRA + 三种蒸馏(Direct Distill 已弃、
+  DMD2 仅 FLUX.2 且需 GAN、**OPD 推荐**)。**无 LCM、无任何 RL**(GRPO/PPO/NFT/DPO
+  全无;reward 模型只出现在推理时扩展教程里)。
+- **架构模式**:`PipelineUnit` 计算图 + `DiffusionTrainingModule.task_to_loss` 字典。
+  比 YoYo 耦合更重(loss 直接持有 `pipe` 引用,遍历其 units),无零件可整抽。
+- **值得吸收的唯一点:OPD(On-Policy Distillation)少步蒸馏**。约 30 行纯逻辑:
+  no_grad 学生轨迹采样 → 随机/低噪声索引输入 → 学生一步 vs 教师多步 MSE。
+  无 GAN、模型无关,与我们 LCM 形成互补(LCM 是自举一致性,OPD 是教师轨迹对齐)。
+  支持 `num_distill_steps` / `min_distill_idx` 两个变体参数。
+- **决策**:OPD 记入候选,按 [`intake-sop.md`](intake-sop.md) 评估后作为
+  `algorithms/` 新零件实现(纯函数损失,不抄其 `DiffusionTrainingModule` 结构)。
+  参考:`examples/qwen_image_21/model_training/special/opd/train_opd_lora.py`。
 
 > 每次核查后,把日期、上游 commit、和"本次值得吸收的亮点"更新到对应行,形成
 > 可追溯的 receipt,而不是一句"最近看过"。

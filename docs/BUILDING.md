@@ -205,8 +205,11 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
   已入注册表并同步 compose 指标表。
 - ~~**示例"指标+可视化+下一步"卡**~~ → 2026-10-13 完成,`examples/README.md` 补了
   7 个示例的实验卡表(指标/可视化/下一步,全部对齐代码里真实返回字段)。
-- **上游雷达**:已核 4/8(Miles、Diffusers、Musubi、SimpleTuner),余 SGLang、vLLM、
-  DiffSynth(相关性较低,可缓)。
+- **上游雷达**:已核 5/8(Miles、Diffusers、Musubi、SimpleTuner、DiffSynth),余 SGLang、
+  vLLM(推理引擎,与训练主线相关性较低,可缓)。DiffSynth 核查发现 **OPD 少步蒸馏**
+  值得吸收(约 30 行纯逻辑,无 GAN,与 LCM 互补),已记入候选。
+- **OPD 蒸馏导入**:DiffSynth 的 On-Policy Distillation,按 intake-sop.md 走 SOP,
+  实现为 `algorithms/` 新零件(纯函数损失,不抄其框架结构)。
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
 - **可视化接真实绘图/dashboard**:目前蓝图只给"建议清单"。
 
