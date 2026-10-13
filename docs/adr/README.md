@@ -20,5 +20,6 @@ after the decision lands and keep mutable rollout evidence in receipts.
 | [0002](0002-architecture-and-lint-gates.md) | 以质量门(architecture + ruff)强制架构与风格 | 已接受 |
 | [0003](0003-absorb-ideas-not-frameworks.md) | 上游吸收"想法和技巧",不抄框架(含 Miles 判例) | 已接受 |
 | [0004](0004-compose-blueprint-not-runspec.md) | `mmtrain compose` 产出蓝图而非可 launch 的 RunSpec | 已接受 |
+| [0005](0005-on-policy-distill-intake.md) | On-Policy Distillation 导入;全名命名避免与 DiffusionOPD 撞车 | 已接受 |
 
 更早的构建与决策叙述见 [`../BUILDING.md`](../BUILDING.md)。

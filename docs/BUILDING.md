@@ -207,17 +207,12 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
   7 个示例的实验卡表(指标/可视化/下一步,全部对齐代码里真实返回字段)。
 - **上游雷达**:8/8 全部核查完毕(Miles、Diffusers、Musubi、SimpleTuner、DiffSynth、
   SGLang、vLLM、AI-Toolkit)。SGLang/vLLM 为推理引擎,与训练零件无交集,已标记。
-- **On-Policy Distillation 蒸馏导入**:DiffSynth 的 OPD,按 intake-sop.md 走 SOP。
-  **2026-10-13 已实现**:`algorithms/on_policy_distill/`(types/objectives)+ 8 个单测
-  + 示例 8(`train_on_policy_distill.py`)+ 契约卡(`docs/algorithms/on_policy_distill.md`)
-  + 注册 `on_policy_distill`(image_training,无需 reward)+ compose 指标表同步。
-  **命名决策**:因仓库已有 `image_opd`(DiffusionOPD,需 reward,一步转移匹配),
-  新零件全名 On-Policy Distillation,避免缩写撞车——两者方法不同,已在契约卡与
-  compose notes 里写明区别。
-  **待办**:网关 502 期间实现,测试与质量门尚未跑通验证;数学规格仍待人工复核
-  (SOP 把关点 1/2)。
+- ~~**On-Policy Distillation 蒸馏导入**~~ → 2026-10-13 完成(commit `bf23ba3`,
+  ADR-0005)。`algorithms/on_policy_distill/` + 8 单测 + 示例 8 + 契约卡 + 注册
+  `on_policy_distill`;五道门全绿(85 测试)。**命名决策**:全名而非 `opd` 缩写,
+  因仓库已有 `image_opd`(DiffusionOPD,不同方法,需 reward)——详见 ADR-0005。
+  **唯一遗留**:数学规格的人工复核(SOP 把关点 1/2),规格原文如下:
 
-  **数学规格(待复核)**:
   - 学生预测 v_student = model(x_t, t),重建 x0_student = x_t - t·v_student
   - 教师多步 Euler 从 x_t 到 x0_teacher(no_grad,detach,由调用方计算)
   - loss = MSE(x0_student, x0_teacher.detach()) × sample_weight
@@ -229,3 +224,4 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
 
 > 2026-10-12 更新:`docs/adr/` 首批 4 篇 ADR 已补录(注册表/质量门/吸收原则/compose
 > 边界),本日志相应条目即其素材来源。
+> 2026-10-13 更新:ADR-0005 补录(On-Policy Distillation 导入与命名决策)。
