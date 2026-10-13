@@ -198,14 +198,13 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
 
 ## 待办与已知边界(动态更新)
 
-截至 2026-10-12 收工:
+截至 2026-10-13 收工:
 
 - **GPU 晋级**:所有模型 `launch_enabled=false`;需 WebTrainer 跑晋级阶梯,本仓库无法完成。
-- **identity reward 注册为插件**:compose 时发现它仅是 examples 里的函数。让 ArcFace
-  身份相似度奖励可用于 RL 目标(人脸/身份保持编辑刚需)。小而完整的架构决策,**建议
-  作为下一个任务**。
-- **示例"指标+可视化+下一步"卡**(主线一遗留):给 7 个示例各补一页实验卡,与 compose
-  蓝图呼应。
+- ~~**identity reward 注册为插件**~~ → 2026-10-13 完成(commit `dc19908`),`identity`
+  已入注册表并同步 compose 指标表。
+- ~~**示例"指标+可视化+下一步"卡**~~ → 2026-10-13 完成,`examples/README.md` 补了
+  7 个示例的实验卡表(指标/可视化/下一步,全部对齐代码里真实返回字段)。
 - **上游雷达**:已核 4/8(Miles、Diffusers、Musubi、SimpleTuner),余 SGLang、vLLM、
   DiffSynth(相关性较低,可缓)。
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
