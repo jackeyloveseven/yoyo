@@ -38,6 +38,7 @@ def build_builtin_registries() -> RegistrySet:
         ),
         ("klein", "KleinPlugin", {"image_edit", "image_training", "t2i"}),
         ("qwen_image", "QwenImagePlugin", {"image_edit", "image_training"}),
+        ("qwen_image_edit_2x", "QwenImageEdit2Plugin", {"image_edit", "image_training"}),
         ("hidream", "HiDreamPlugin", {"image_edit", "image_training", "t2i"}),
         ("krea2", "Krea2Plugin", {"diffusion_alignment", "image_edit", "image_training"}),
     )

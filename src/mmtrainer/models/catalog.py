@@ -29,6 +29,13 @@ class QwenImagePlugin(CatalogModelPlugin):
     adapter_import_path = "mmtrainer.models.qwen_image:QwenImageAdapter"
 
 
+class QwenImageEdit2Plugin(CatalogModelPlugin):
+    plugin_id = "qwen_image_edit_2x"
+    capabilities = frozenset({"image_edit", "image_training"})
+    v1_policy_keys = ("model", "state_dict")
+    adapter_import_path = "mmtrainer.models.qwen_image_edit2:QwenImageEdit2Adapter"
+
+
 class HiDreamPlugin(CatalogModelPlugin):
     plugin_id = "hidream"
     capabilities = frozenset({"image_edit", "image_training", "t2i"})

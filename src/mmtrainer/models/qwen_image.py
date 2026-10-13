@@ -64,6 +64,23 @@ def encode_vae_image(vae: Any, images: torch.Tensor, weight_dtype: torch.dtype) 
     return (latents - latents_mean) / latents_std
 
 
+def encode_qwen_prompt(
+    pipeline: Any,
+    control_pil_images: list[Any],
+    prompts: list[str],
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """编码文本与控制图条件,返回 (prompt_embeds, prompt_mask)。"""
+    prompt_embeds, prompt_mask = pipeline.encode_prompt(
+        image=control_pil_images,
+        prompt=prompts,
+        device=device,
+        num_images_per_prompt=1,
+        max_sequence_length=1024,
+    )
+    return prompt_embeds, prompt_mask
+
+
 def pack_qwen_latents(pipeline: Any, latents: torch.Tensor) -> torch.Tensor:
     batch_size, channels, _, height, width = latents.shape
     return pipeline._pack_latents(latents, batch_size, channels, height, width)
@@ -94,12 +111,8 @@ def prepare_qwen_sft_batch(
     sigmas: torch.Tensor | None = None,
 ) -> QwenSftBatch:
     with torch.no_grad():
-        prompt_embeds, prompt_mask = pipeline.encode_prompt(
-            image=control_pil_images,
-            prompt=prompts,
-            device=target_tensors.device,
-            num_images_per_prompt=1,
-            max_sequence_length=1024,
+        prompt_embeds, prompt_mask = encode_qwen_prompt(
+            pipeline, control_pil_images, prompts, target_tensors.device
         )
         target_latents = encode_vae_image(vae, target_tensors, weight_dtype)
         control_latents = encode_vae_image(vae, control_tensors, weight_dtype)
@@ -137,12 +150,8 @@ def prepare_qwen_dpo_batch(
     weight_dtype: torch.dtype,
 ) -> QwenDpoBatch:
     with torch.no_grad():
-        prompt_embeds, prompt_mask = pipeline.encode_prompt(
-            image=control_pil_images,
-            prompt=prompts,
-            device=win_tensors.device,
-            num_images_per_prompt=1,
-            max_sequence_length=1024,
+        prompt_embeds, prompt_mask = encode_qwen_prompt(
+            pipeline, control_pil_images, prompts, win_tensors.device
         )
         win_latents = encode_vae_image(vae, win_tensors, weight_dtype)
         lose_latents = encode_vae_image(vae, lose_tensors, weight_dtype)

@@ -9,9 +9,8 @@
 
 ## 怎么用这份文档
 
-- 要改某模块 → 先搜该模块对应的条目,理解它的设计约束。
-- 做完一次重大变更 → 在对应小节追加一条,注明日期、commit、验证门。
-- 不确定某决策是否仍成立 → 条目里写了"边界",据此判断是否可以推翻。
+- 要改某模块 → 先搜对应条目,理解设计约束;不确定决策是否仍成立 → 看"边界"。
+- 做完一次重大变更 → 追加一条(日期、commit、验证门)。
 
 ---
 
@@ -33,18 +32,14 @@
 
 ## 2026-10:文档与对比说人话 + AI-Toolkit 诚实对比
 
-**做了什么**:重写根 README(开头 30 秒讲清"是什么",加"5 分钟跑通""零件清单"),
-新增与 [ostris/ai-toolkit](https://github.com/ostris/ai-toolkit) 的对比表。
+**做了什么**:重写根 README(30 秒讲清"是什么"),新增与
+[ostris/ai-toolkit](https://github.com/ostris/ai-toolkit) 的对比表(现住 README)。
 
-**为什么**:旧 README 堆内部符号(`DPOThenNFTPlan`、`psr_weight`),第一次来的人
-看不懂。对比表最初误写 ai-toolkit 是"单体、无蒸馏",读其 main 源码后更正:它有
-extension/model registry,且 SDTrainer.py 内有 D-OPSD 自蒸馏分支;真实差异是
-"配置驱动填参数 vs 零件驱动拼装"、"单一 D-OPSD 分支 vs 多目标可叠加蒸馏"、
-"main 无内置 RL/DPO vs YoYo 内置 6 套原语"。
+**教训**:对比表最初误写 ai-toolkit 是"单体、无蒸馏",读其 main 源码后更正(它有
+extension/model registry,SDTrainer.py 内有 D-OPSD 自蒸馏分支)。**写竞品对比必须读
+一手源码,否定性论断(它没有 X)最容易错。**
 
-**教训**:写竞品对比必须读一手源码,否定性论断(它没有 X)最容易错。
-
-**验证**:`check_docs.py`(断链/重复片段);USAGE.md 的 `--expected-sha256` 流程实测跑通。
+**验证**:`check_docs.py`(断链/重复片段);`--expected-sha256` 流程实测跑通。
 
 ---
 
@@ -75,10 +70,10 @@ Miles 的优点。核心原则:**吸收"想法和实现技巧",不抄"框架和�
 **为什么 skill 不入库**:agent 执行模板放 `intake-sop.md` 附录而非 `.claude/skills/`,
 因为 `check_docs.py` 明令禁止 `.claude/skills` 存在于源码树(防重复 skill 根)。
 
-**Miles 核查结论(2026-10-12,暂不吸收)**:见 [`sourcing/README.md`](sourcing/README.md)。
-其扩散版 `miles_diffusion` 与我们同算法栈,但"快"来自重分布式架构(SGLang rollout
-服务 + 全异步 + Ray/FSDP2/USP + CUDA IPC 权重同步),抽不出独立零件,且当前吞吐非瓶颈。
-**价值:外部印证了我们选的算法栈(Flow-GRPO/DiffusionNFT/SFT)生产可行。**
+**Miles 核查结论(2026-10-12,暂不吸收)**:其扩散版 `miles_diffusion` 与我们同
+算法栈,但"快"来自重分布式架构(SGLang rollout 服务 + 全异步 + Ray/FSDP2/USP),
+抽不出独立零件,当前吞吐亦非瓶颈反向印证算法栈生产可行。详见
+[`sourcing/README.md`](sourcing/README.md)。
 
 ---
 
@@ -108,91 +103,87 @@ LoRA 打前馈层,其它模型只打注意力层,LoRA 配置不可跨模型照�
 下一步指示,而不是让人翻源码。**面向 agent(可全参数非交互)但保留人交互(问答+默认
 值+解释),防止人不参与而退化。**
 
-**设计约束**:
-- 逻辑(`compose.py`:兼容过滤、蓝图生成)是纯函数,交互层(CLI)只做 input/print,
-  故核心可单测。
-- 指标表(`guidance.py`)全部对齐代码里真实返回的字段(PPOMetrics、各 loss 返回值)
-  与 reward 插件真实输出维度(hps 美学分、pickscore、MLLM 多维分、OCR),不虚构。
-- 产出是**蓝图不是 RunSpec**:资产哈希与运行时拓扑由 WebTrainer 控制面填充,compose
-  弹不出来,故只打印不落盘。
+**设计约束**(详见 ADR-0004):逻辑纯函数可单测、CLI 只做 input/print;指标表
+全部对齐代码真实返回字段与 reward 插件真实输出维度,不虚构;产出是蓝图不是
+RunSpec——资产哈希与运行时拓扑由 WebTrainer 控制面填充,compose 弹不出来。
 
-**发现的代码/文档不一致**:identity reward 作为函数存在于 examples,但未注册为插件,
-故从 reward 指标表移除并注释,待注册后补回。
+**发现的代码/文档不一致**:identity reward 曾作为函数存在于 examples 但未注册为
+插件——compose 指标表因此漏它;后已注册并同步(见遗留区)。
 
 **验证**:`test_compose.py`(兼容过滤、reward 过滤、guidance 表与注册表同步、
 不兼容报错);56 测试全过;CLI 交互/非交互两模式实测。
 
 **遗留(下一步)**:
-- ~~蓝图暂只打印,不落 `blueprint.json`~~ → 2026-10-12 已补 `--output`(见下)。
-- identity reward 若要可用,需注册为插件(架构决策,仍未做)。
-- 可视化目前是"建议清单",尚未接真实绘图;未来可对接 dashboard。
+- ~~蓝图暂只打印,不落 `blueprint.json`~~ → 已补 `--output`(见下)。
+- ~~identity reward 未注册为插件~~ → 已注册(`dc19908`),指标表已同步。
+- 可视化是"建议清单",接真实绘图等 GPU 晋级后重估(见文末待办)。
 
 ---
 
 ## 2026-10:compose 蓝图落盘 `--output`(主线二收尾)
 
-**做了什么**:`mmtrain compose` 新增 `--output path.json / path.md`,把蓝图存成
-机器可消费的 json 或人可读的 Markdown,不只打印。新增纯函数
-`render_blueprint_markdown()`(compose 包内,可测),CLI 负责写文件。commit `6d9b3e1`。
+**做了什么**:`mmtrain compose` 新增 `--output path.json / path.md`,新增纯函数
+`render_blueprint_markdown()`。commit `6d9b3e1`。
 
-**为什么**:面向 agent 的闭环——agent 组完蓝图能存下来给下一步(如交给控制面、或
-贴进实验记录)直接消费,而不是复制终端文本。Markdown 含组件/概要/指标/可视化/晋级
-阶梯五段;无 reward 的目标不渲染 reward 小节(有同步测试守边界)。
+**为什么**:面向 agent 的闭环——蓝图能存下来给下一步直接消费,而不是复制终端文本。
 
-**验证**:测试 5 → 6(新增 markdown 章节覆盖与"无 reward 不渲染"边界);json/md 两
-格式落盘实测;全门绿。
-
----
-
-## 2026-10:LCM 端到端示例(第 7 个 example)
-
-**做了什么**:`examples/train_lcm_distill.py`——在线学生 + EMA 目标网络 + 相邻步
-自举 + `lcm_consistency_loss` + EMA 更新,完整一步 LCM 训练,CPU 可跑,返回
-`total_loss`/`consistency_rms` 等指标。登记进 `examples/README.md` 与根 README。
-commit `27451f8`。
-
-**为什么**:让新方法从"零件"变成"能跑起来看效果";给 compose 蓝图里"学生一步 vs
-教师多步对比"这句建议一个真实代码落点。
-
-**验证**:示例实跑输出健康(`consistency_rms=0.0157`,学生一步映射形状正确);全门绿。
+**验证**:测试 5 → 6(json/md 章节覆盖、"无 reward 不渲染"边界);全门绿。
 
 ---
 
 ## 2026-10:LCM 少步蒸馏——第一个走完整 import-method SOP 的方法
 
-**做了什么**:新增 `algorithms/latent_consistency/` 零件(`lcm_consistency_loss`),
-把 LCM(Latent Consistency Model)相邻步自举一致性蒸馏接入 rectified-flow;注册为
-`latent_consistency` 目标(image_training,无需 reward)。commit `fdfeeb2`。
+**做了什么**:新增 `algorithms/latent_consistency/`(`lcm_consistency_loss`),把 LCM
+相邻步自举一致性蒸馏接入 rectified-flow;注册为 `latent_consistency` 目标。
+commit `fdfeeb2`。**验证了吸收 SOP 本身好用**。后补端到端示例
+`examples/train_lcm_distill.py`(在线学生 + EMA 目标,commit `27451f8`),给 compose
+蓝图里"学生一步 vs 教师多步对比"这句建议一个真实代码落点。
 
-**为什么**:Diffusers 上游核查发现的真实算法空白——我们原有 DMD 系与 TDM 系蒸馏,
-但**没有一致性模型(LCM)少步蒸馏路径**,而 LCM 正是"少步蒸馏"的主流方向。这是
-第一个完整走完 [`sourcing/intake-sop.md`](sourcing/intake-sop.md) 全流程的方法,
-**验证了吸收 SOP 本身好用**。
+**为什么**:Diffusers 上游核查发现的真实算法空白——原有 DMD/TDM 系蒸馏但没有一致性
+模型少步路径。数学规格与契约细节见
+[`algorithms/latent_consistency.md`](algorithms/latent_consistency.md);SimpleTuner
+`distillation/lcm/` 仅作数学对照(ADR-0003)。
 
-**怎么做的(人机分工)**:人(主线 agent)先审定数学规格(SOP 第 1 步把关点),再把
-规格、接口契约、架构门、测试要求写死进子代理任务;子代理只实现、不做数学决策;
-主线 agent 事后**逐行独立复核**数学与测试覆盖(把关点 2/3)后才提交。
-
-**数学(rectified-flow 约定)**:`x0_online = x_t - t·v_θ`(保留梯度);自举状态
-`x_{t'} = euler_flow_step(x_t, v_θ.detach(), t, t')` 在 `no_grad` 下构造(只留一阶
-路径);`x0_target` detach;伪 Huber `sqrt(Δ²+c²)-c`(c=1e-3)。区别于 TDM/DMD:
-无需教师多步 rollout,也无需独立 fake-score 网络。
-
-**参考**:SimpleTuner `distillation/lcm/` 提供数学对照(见雷达表),按 ADR-0003
-只参考数学、不抄其框架类结构。
-
-**验证**:5 道门全绿(quality 85 文件 / docs 35 文件 1537 行 / ruff / format /
-structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶路径)。
-**规格偏离:零。**
+**怎么做的(人机分工)**:人先审定数学规格(SOP 把关点 1),把规格/契约/架构门/测试
+要求写死进子代理任务;子代理只实现;主线事后逐行独立复核数学与测试覆盖。
 
 **过程教训(子代理诚实上报,值得后来者警惕)**:
-- 新辅助函数撞了 `reward_matching` 的 50-token 重复窗口门 → 重写为列表推导;
-- 一处"对 online 二阶导为 0"的断言数学上不成立(fixed-point 附近为 1/(2c)≈500)
-  → 改为对 target 验证 + 解析参考逐元素比对,这才是"自举项被停住"的正确判据;
-- 伪 Huber 在 `c=0` 退化为 `|Δ|`(原点梯度无定义),文档建议保留正的 c。
+- 新辅助函数撞 `reward_matching` 的重复窗口门 → 重写为列表推导;
+- "对 online 二阶导为 0"的断言数学上不成立(fixed-point 附近 1/(2c)≈500)→ 改为对
+  target 验证 + 解析参考逐元素比对,这才是"自举项被停住"的正确判据;
+- 伪 Huber 在 `c=0` 退化,文档建议保留正的 c。
 
-**遗留**:`launch_enabled=false`,GPU 晋级未做;LCM 尚无端到端训练示例(可在
-`examples/` 补一个,把"学生一步 vs 教师多步"采样对比跑起来)。
+**验证**:五道门全绿;测试 56 → 75(+19,含解析梯度对拍);规格偏离:零。
+**遗留**:`launch_enabled=false`,GPU 晋级未做。
+
+---
+
+## 2026-10:Qwen-Image-Edit 2.x 多图适配 + 家族豁免(ADR-0006)
+
+**做了什么**:新增 `qwen_image_edit_2x` 模型插件(`models/qwen_image_edit2.py`,
+1-3 张控制图,SFT/DPO 批次构造,5 单测)与能力卡;能力矩阵加列。2.x 与原版共享
+Qwen2.5-VL 编码器/Wan2.1-VAE/MMDiT 前向签名,差异只在 diffusers 管线名
+(`QwenImageEditPlusPipeline`)与控制图数量。
+
+**决策(ADR-0006)**:`models/<a>` 禁 import `models/<b>` 与 50-token 重复窗口
+两门在"同模型新版本"场景下互相矛盾(不许复用 ⇒ 只能复制 ⇒ 复制违规)。解法:
+`audit.py` 引入 `MODEL_FAMILY_EXEMPTIONS` 单向豁免白名单,只放开 import 边;
+重复窗口门照常——edit2 因此必须真复用原版零件(`encode_vae_image`/
+`pack_qwen_latents`/`predict_qwen`/新抽的 `encode_qwen_prompt`),每条豁免
+必须配 ADR。
+
+**防重影契约(invoke-ai#9155)**:`img_shapes` 里 noisy 流与每个 control 流各自
+记录 `(1, H//2, W//2)`,跨流共用 tuple 会让 MSRoPE 给两段相同空间位置,跨注意力
+无法区分。`_pack_latent_streams` 按流独立推导,有回归测试断言每样本形状数=流数。
+
+**顺带修正**:①`control_pil_images` 注解改 `list[list[Any]]`(Plus 管线是嵌套
+列表契约,原版扁平列表不适用);②`test_cli`/`test_model_cards` 硬编码模型清单
+改为从注册表动态取(每加一个模型改一次测试的维护债);③docs 预算 2000→2200,
+按 ADR-0002 修订程序先全量压缩(清除过时决策文本与腐烂的手工符号清单)后显式
+上调,修订记录在 ADR-0002。
+
+**验证**:90 测试全绿;五道门全绿;LoRA 靶点继承原版 12 模块名但**未 GPU 验证**,
+晋级时以实际 `named_modules` 扫描为准。
 
 ---
 
@@ -201,28 +192,13 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
 截至 2026-10-13 收工:
 
 - **GPU 晋级**:所有模型 `launch_enabled=false`;需 WebTrainer 跑晋级阶梯,本仓库无法完成。
-- ~~**identity reward 注册为插件**~~ → 2026-10-13 完成(commit `dc19908`),`identity`
-  已入注册表并同步 compose 指标表。
-- ~~**示例"指标+可视化+下一步"卡**~~ → 2026-10-13 完成,`examples/README.md` 补了
-  7 个示例的实验卡表(指标/可视化/下一步,全部对齐代码里真实返回字段)。
-- **上游雷达**:8/8 全部核查完毕(Miles、Diffusers、Musubi、SimpleTuner、DiffSynth、
-  SGLang、vLLM、AI-Toolkit)。SGLang/vLLM 为推理引擎,与训练零件无交集,已标记。
-- ~~**On-Policy Distillation 蒸馏导入**~~ → 2026-10-13 完成(commit `bf23ba3`,
-  ADR-0005)。`algorithms/on_policy_distill/` + 8 单测 + 示例 8 + 契约卡 + 注册
-  `on_policy_distill`;五道门全绿(85 测试)。**命名决策**:全名而非 `opd` 缩写,
-  因仓库已有 `image_opd`(DiffusionOPD,不同方法,需 reward)——详见 ADR-0005。
-  **数学规格已人工复核通过(2026-10-13,SOP 把关点 1/2 关闭)**:7 条规格逐条
-  对拍测试通过;与 DiffSynth 的三处有意差异经确认接受——①教师轨迹由调用方
-  构造(保零件纯函数);②`min_distill_idx` 只校验不使用(过滤责任在调用方采样
-  sigma);③损失用 MSE 而非伪 Huber(与 DiffSynth 一致;LCM 用伪 Huber 是另一
-  方法的独立选择)。SOP 全流程第二次走通,闭环。
+- **上游雷达**:8/8 首轮核查完毕;SGLang/vLLM 为推理引擎,与训练零件无交集,已标记。
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
-- **可视化接真实绘图/dashboard**:目前蓝图只给"建议清单"。**2026-10-13 评估:
-  降级为"等 GPU 晋级后重估"**——示例是 CPU toy,返回聚合指标;真实曲线需要
-  真实训练循环(GPU 晋级后),此时给 toy 示例加指标序列落盘是过早抽象。蓝图
-  的文字建议(画什么图、看什么量)已具体到可直接执行,agent 拿到真实训练数据
-  后自行落盘/绘图即可。届时若发现"指标如何序列化"成为重复劳动,再抽共用工具。
+- **可视化接真实绘图**:蓝图只给"建议清单"。2026-10-13 评估:等 GPU 晋级后重估——
+  示例是 CPU toy,真实曲线需要真实训练循环;给 toy 示例加指标序列落盘是过早抽象,
+  agent 拿到真实数据后自行落盘/绘图,若序列化成为重复劳动再抽共用工具。
 
-> 2026-10-12 更新:`docs/adr/` 首批 4 篇 ADR 已补录(注册表/质量门/吸收原则/compose
-> 边界),本日志相应条目即其素材来源。
-> 2026-10-13 更新:ADR-0005 补录(On-Policy Distillation 导入与命名决策)。
+2026-10-13 已关闭:identity reward 注册(`dc19908`,同步 compose 指标表);示例
+实验卡(`examples/README.md`,对齐真实返回字段);On-Policy Distillation 导入
+(`bf23ba3`,ADR-0005——命名避开已有 `image_opd`;数学规格人工复核通过,与
+DiffSynth 三处有意差异确认接受,SOP 第二次完整走通)。

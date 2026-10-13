@@ -288,6 +288,15 @@ def _audit_file(
     return violations, argparse_imported
 
 
+# 同家族版本演进的显式豁免:键 = "子版本模块",值 = 它被允许依赖的家族基线模块。
+# 仅用于"同一模型的新版本适配器复用旧版函数"(如 Qwen-Image-Edit 2.x 复用原版
+# VAE/pack/前向协议)。每条豁免必须在 docs/adr/ 有对应 ADR 记录理由,防止
+# 白名单沦为绕过架构门的后门。
+MODEL_FAMILY_EXEMPTIONS: dict[str, frozenset[str]] = {
+    "qwen_image_edit2": frozenset({"qwen_image"}),
+}
+
+
 def audit_source_tree(source_root: str | Path) -> QualityReport:
     root = Path(source_root).resolve(strict=True)
     if root.name != "mmtrainer":
@@ -317,10 +326,11 @@ def audit_source_tree(source_root: str | Path) -> QualityReport:
         if not module.startswith("mmtrainer.models."):
             continue
         owner = module.split(".", 2)[2].split(".", 1)[0]
+        exempt = MODEL_FAMILY_EXEMPTIONS.get(owner, frozenset())
         for imported in imports:
             if imported.startswith("mmtrainer.models."):
                 target = imported.split(".", 2)[2].split(".", 1)[0]
-                if target != owner:
+                if target != owner and target not in exempt:
                     violations.append(f"cross-model-import:{module}->{imported}")
 
     duplicate_candidates = tuple(

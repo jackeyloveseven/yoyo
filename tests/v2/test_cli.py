@@ -6,6 +6,7 @@ from pathlib import Path
 
 from mmtrainer.cli import main
 from mmtrainer.config import RunSpec
+from mmtrainer.registry import build_builtin_registries
 from mmtrainer.version import __version__
 from tests.v2.conftest import run_spec_payload
 
@@ -57,11 +58,7 @@ def test_plan_validate_and_preflight_cli(tmp_path, capsys) -> None:
 def test_registry_cli_lists_bounded_plugins(capsys) -> None:
     assert main(["registry", "list"]) == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["models"] == [
-        "firered",
-        "hidream",
-        "klein",
-        "krea2",
-        "qwen_image",
-        "sensenova",
-    ]
+    # 模型清单随注册表动态演进,不在此处硬编码(避免每加一个插件改一次测试)。
+    assert payload["models"] == sorted(
+        entry.plugin_id for entry in build_builtin_registries().models.entries()
+    )

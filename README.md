@@ -50,7 +50,7 @@ YoYo 把这些**公共零件抽出来，各放一处，各自单测**：
 | **RL / DPO** | main 分支未见内置实现 | 一等公民，内置 10 个可跑目标（RL/DPO/蒸馏/SFT）+ 7 个奖励后端 |
 | **蒸馏** | 有 D-OPSD 自蒸馏分支（单一目标） | 多目标可叠加：OPD + DMD2 + NormGuard + REPA + LCM 同时组合 |
 | **图形界面** | 有 Web UI，点点鼠标就能训 | 无 UI，面向写代码的研究者 |
-| **质量保障** | 社区驱动、迭代快，CI 不跑测试 | 每次提交强制过 AST 门 + 85 数值不变量测试 + 文档门 |
+| **质量保障** | 社区驱动、迭代快，CI 不跑测试 | 每次提交强制过 AST 门 + 90 数值不变量测试 + 文档门 |
 
 **一句话**：想快速给 FLUX 训个 LoRA、不想碰代码——用 AI-Toolkit 更顺手。想在多个模型上系统地做后训练、蒸馏、RL 研究，且要求代码可测、可复用、不重复——YoYo 更合适。
 
@@ -62,13 +62,10 @@ YoYo 的目标不是"另一个训练脚本合集",而是做**扩散/流匹配后
 
 - **统一约定**:加噪 `x_t=(1-t)x_0+t·noise`、Euler/DPM2 求解器、FP32 上溢规则
   写在基座层,所有算法共享——杜绝每篇论文一套符号约定,对比实验从第一天就可比。
-- **结果可核对**:每个算法零件配契约卡(数值约定、detach 边界、失败模式)和
-  一组数值不变量测试(KL 的 FP32 计算、教师 detach、零方差组中性),README 里的
-  每个数字与代码同源,由文档同步测试强制一致。
-- **论文到零件有标准路径**:上游雷达监测 8 个活跃项目 + import SOP 定义准入
-  门槛与三个人工把关点,已走通 LCM 与 On-Policy Distillation 两个完整案例。
-
-项目主页:[github.com/jackeyloveseven/yoyo](https://github.com/jackeyloveseven/yoyo)
+- **结果可核对**:每个算法零件配契约卡(数值约定、detach 边界、失败模式)和一组
+  数值不变量测试,README 里的每个数字与代码同源,由文档同步测试强制一致。
+- **论文到零件有标准路径**:上游雷达监测 8 个活跃项目 + import SOP 定义准入门槛
+  与三个人工把关点,已走通 LCM 与 On-Policy Distillation 两个完整案例。
 
 ---
 
@@ -160,7 +157,7 @@ class MyCustomAdapter(BaseModelAdapter):
 | 层 | 模块 | 提供了什么 |
 | :--- | :--- | :--- |
 | **流 & 神经网络** | [`mmtrainer.nn`](src/mmtrainer/nn/) | 流插值、Euler/DPM2 求解器、WSD/余弦学习率、FSDP2、稀疏 LoRA-MoE |
-| **模型适配器** | [`mmtrainer.models`](src/mmtrainer/models/catalog.py) | Klein、Qwen-Image、Krea2、FireRed、SenseNova、HiDream |
+| **模型适配器** | [`mmtrainer.models`](src/mmtrainer/models/catalog.py) | Klein、Qwen-Image、Qwen-Image-Edit 2.x、Krea2、FireRed、SenseNova、HiDream |
 | **SFT/DPO/蒸馏** | [`mmtrainer.algorithms.sft_dpo`](src/mmtrainer/algorithms/sft_dpo/) | Flow SFT、耦合噪声 DPO、OPD、DMD2、GT-Reg、NormGuard、REPA |
 | **少步蒸馏** | [`mmtrainer.algorithms.latent_consistency`](src/mmtrainer/algorithms/latent_consistency/) · [`mmtrainer.algorithms.on_policy_distill`](src/mmtrainer/algorithms/on_policy_distill/) | LCM 一致性自举(相邻 ODE 步,无需教师多步 rollout);On-Policy Distillation(教师多步轨迹终点对齐) |
 | **在线 RL** | [`mmtrainer.algorithms`](src/mmtrainer/algorithms/catalog.py) | DiffusionNFT、非对称 DPO、Flow-GRPO、DiffusionOPSD、FlowMimic-OPSD、Edit-R1 |
@@ -178,13 +175,9 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 [`docs/sourcing/`](docs/sourcing/README.md),**任何人都可以认领一项、按
 [`docs/sourcing/intake-sop.md`](docs/sourcing/intake-sop.md) 提 PR**。
 
-**主线一(用现有零件)**:8 个 CPU 示例 + 实验卡 ✓
-**主线二(按需组建)**:`mmtrain compose` 向导 + 指标/可视化推荐 + 晋级建议 +
-`--output` 落盘蓝图 ✓
-**主线三(导入新组件)**:吸收体系与 SOP ✓;LCM 与 On-Policy Distillation 两个
-方法已完整走 SOP ✓;上游雷达 8/8 首轮核查完毕 ✓
-**文档系统**:5 篇 ADR、6 张模型能力卡(注册表同步测试守护)、入门导读、
-三条核查触发规则 ✓
+三条主线已交付:①8 个 CPU 示例 + 实验卡;②`mmtrain compose` 向导 + `--output`
+蓝图落盘;③吸收 SOP 完整走通 LCM 与 On-Policy Distillation 两个方法,上游雷达
+8/8 首轮核查完毕。过程与验证记录见 [`docs/BUILDING.md`](docs/BUILDING.md)。
 
 **当前大方向**:视频模型支持(大工程,未排期)、GPU 晋级(需 WebTrainer 控制面)、
 可视化真实绘图(等 GPU 晋级后重估)。

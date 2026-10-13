@@ -51,16 +51,14 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
   CUDA stream / producer-consumer 重叠采样与反向)与"LoRA 只传 A/B 对想法"。届时按
   [`intake-sop.md`](intake-sop.md) 评估。
 
-### Diffusers 核查结论(2026-10-12,求解器无缺口;LCM 为候选新方法)
+### Diffusers 核查结论(2026-10-12,求解器无缺口;LCM 已吸收)
 
 - **求解器/调度器**:diffusers 的 flow-match 系列(Euler/Heun)与我们 `nn/flow.py`
-  的 `euler_flow_step`/`dpm2_flow_step` 同为标准 1/2 阶求解器,功能重叠,**无本质缺口**。
-  我们还有 diffusers 没有的 `resolution_shifted_timesteps`(分辨率位移时间步,FLUX 系)。
-- **发现的算法空白:LCM(Latent Consistency)少步蒸馏**。我们现有蒸馏为 DMD 系
-  (`dmd_*`)与 TDM 系(`trajectory_distillation/`),**没有一致性模型(LCM)路径**。
-  这正是"少步蒸馏新方法"的方向。**决策:记入候选,不立即导入**——待明确要做少步
-  蒸馏时,按 [`intake-sop.md`](intake-sop.md) 评估 LCM/一致性蒸馏为一个新
-  `algorithms/` 零件(纯函数一致性损失 + 配套求解器),而非 vendor diffusers 的
+  同为标准 1/2 阶求解器,功能重叠,**无本质缺口**;我们另有 diffusers 没有的
+  `resolution_shifted_timesteps`(分辨率位移时间步,FLUX 系)。
+- **LCM 少步蒸馏**(当时发现的算法空白,已有 DMD/TDM 系但没有一致性路径):
+  已按 [`intake-sop.md`](intake-sop.md) 完整吸收为 `algorithms/latent_consistency/`
+  (commit `fdfeeb2`),数学对照 SimpleTuner 实现,未 vendor diffusers 的
   `scheduling_flow_match_lcm`。
 
 ### Musubi Tuner 核查结论(2026-10-12,记教训不吸收)
@@ -89,19 +87,14 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
   脚本,佐证 SOP"每方法一组失败模式测试"的做法。
 - **决策**:作为架构印证与 LCM 数学参考记录;其框架代码不吸收。
 
-### DiffSynth 核查结论(2026-10-13,OPD 值得吸收)
+### DiffSynth 核查结论(2026-10-13,OPD 已吸收)
 
 - **训练目标覆盖**:SFT(flow-matching MSE)+ LoRA + 三种蒸馏(Direct Distill 已弃、
-  DMD2 仅 FLUX.2 且需 GAN、**OPD 推荐**)。**无 LCM、无任何 RL**(GRPO/PPO/NFT/DPO
-  全无;reward 模型只出现在推理时扩展教程里)。
-- **架构模式**:`PipelineUnit` 计算图 + `DiffusionTrainingModule.task_to_loss` 字典。
-  比 YoYo 耦合更重(loss 直接持有 `pipe` 引用,遍历其 units),无零件可整抽。
-- **值得吸收的唯一点:OPD(On-Policy Distillation)少步蒸馏**。约 30 行纯逻辑:
-  no_grad 学生轨迹采样 → 随机/低噪声索引输入 → 学生一步 vs 教师多步 MSE。
-  无 GAN、模型无关,与我们 LCM 形成互补(LCM 是自举一致性,OPD 是教师轨迹对齐)。
-  支持 `num_distill_steps` / `min_distill_idx` 两个变体参数。
-- **决策**:OPD 记入候选,按 [`intake-sop.md`](intake-sop.md) 评估后作为
-  `algorithms/` 新零件实现(纯函数损失,不抄其 `DiffusionTrainingModule` 结构)。
+  DMD2 仅 FLUX.2 且需 GAN)。**无 LCM、无任何 RL**(GRPO/PPO/NFT/DPO 全无)。
+  其 `PipelineUnit` + `DiffusionTrainingModule.task_to_loss` 耦合重,无零件可整抽。
+- **值得吸收的点:OPD(On-Policy Distillation)少步蒸馏**——约 30 行纯逻辑、无 GAN、
+  模型无关,与我们 LCM(自举一致性)互补。**已完整吸收**为
+  `algorithms/on_policy_distill/`(ADR-0005,含与 DiffSynth 的三处有意差异)。
   参考:`examples/qwen_image_21/model_training/special/opd/train_opd_lora.py`。
 
 > 每次核查后,把日期、上游 commit、和"本次值得吸收的亮点"更新到对应行,形成

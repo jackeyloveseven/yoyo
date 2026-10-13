@@ -37,7 +37,7 @@ CODE_FENCE = re.compile(r"```.*?```", re.DOTALL)
 WORD_TOKEN = re.compile(r"[A-Za-z0-9_\u4e00-\u9fff]+")
 
 MAX_DOCUMENTS = 65
-MAX_TOTAL_LINES = 2_000
+MAX_TOTAL_LINES = 2_200
 MAX_FILE_LINES = 500
 DUPLICATE_TOKEN_WINDOW = 50
 

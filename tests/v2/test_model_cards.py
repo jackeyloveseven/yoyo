@@ -24,6 +24,8 @@ def _registry_matrix() -> dict[str, dict[str, bool]]:
 
 
 def _documented_matrix() -> dict[str, dict[str, bool]]:
+    registries = build_builtin_registries()
+    model_ids = tuple(entry.plugin_id for entry in registries.models.entries())
     rows: dict[str, dict[str, bool]] = {}
     for line in MATRIX_DOC.read_text(encoding="utf-8").splitlines():
         if not line.startswith("|") or ":-" in line or "目标" in line:
@@ -35,12 +37,7 @@ def _documented_matrix() -> dict[str, dict[str, bool]]:
         if not re.fullmatch(r"[a-z0-9_]+", objective):
             continue
         rows[objective] = {
-            model_id: mark == "Y"
-            for model_id, mark in zip(
-                ("firered", "hidream", "klein", "krea2", "qwen_image", "sensenova"),
-                marks,
-                strict=True,
-            )
+            model_id: mark == "Y" for model_id, mark in zip(model_ids, marks, strict=True)
         }
     return rows
 
