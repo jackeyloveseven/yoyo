@@ -88,6 +88,7 @@ def build_builtin_registries() -> RegistrySet:
         ("pickscore", "PickScorePlugin"),
         ("edit_r1_mllm", "EditR1MLLMRewardPlugin"),
         ("professional_ocr", "ProfessionalOCRPlugin"),
+        ("identity", "IdentityRewardPlugin"),
         ("none", "NoRewardPlugin"),
     ):
         rewards.register(

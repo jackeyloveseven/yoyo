@@ -170,8 +170,7 @@ REWARD_METRICS: dict[str, tuple[str, ...]] = {
         "overall(加权综合)",
     ),
     "professional_ocr": ("OCR 准确率(目标文本匹配度)",),
-    # 注:identity(cosine 身份相似度,ArcFace 5 点对齐)目前作为函数在 examples 中使用,
-    # 尚未注册为 reward 插件,故不在此表;注册插件后再补回。
+    "identity": ("cosine 身份相似度(ArcFace 5 点对齐,1 - cosine_identity_loss)",),
     "none": (),
 }
 
