@@ -30,8 +30,8 @@ vLLM、Diffusers、AI-Toolkit、Miles)在各自场景里把某些实现做得又
 | [DiffSynth](https://github.com/modelscope/DiffSynth-Studio) | 多模型训练管线、视频/WAN 训练技巧 | 已核查 2026-10-13,**OPD 值得吸收**(见下) |
 | [Musubi Tuner](https://github.com/kohya-ss/musubi-tuner) | 视频模型 LoRA(HunyuanVideo/Wan2.x/FramePack/MiniMax-H3)、文本编码器缓存的坑 | 已核查 2026-10-12,记教训不吸收(见下) |
 | [SimpleTuner](https://github.com/bghira/SimpleTuner) | **蒸馏方法注册表范式、LCM 参考实现** | 已核查 2026-10-12,印证架构 + LCM 参考(见下) |
-| [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 待核查 |
-| [vLLM](https://github.com/vllm-project/vllm) | PagedAttention、连续批处理(供 rollout 加速参考) | 待核查 |
+| [SGLang](https://github.com/sgl-project/sglang) | 高性能采样/推理调度、KV 复用 | 已评估 2026-10-13,推理引擎与训练零件无交集;未来做训练-采样分离时可参考其 rollout 加速思路(见 Miles 结论) |
+| [vLLM](https://github.com/vllm-project/vllm) | PagedAttention、连续批处理(供 rollout 加速参考) | 已评估 2026-10-13,同上;PagedAttention 是推理时显存管理,与训练反向传播无关 |
 | [Diffusers](https://github.com/huggingface/diffusers) | 求解器/调度器官方实现、模型 IO 契约 | 已核查 2026-10-12,求解器无缺口;**LCM 少步蒸馏为候选**(见下) |
 | [AI-Toolkit](https://github.com/ostris/ai-toolkit) | 微调 UX、D-OPSD 自蒸馏分支、扩展注册表 | 部分(见根 README 对比) |
 | [Miles](https://github.com/radixark/miles) / [miles_diffusion](https://github.com/radixark/miles_diffusion) | 扩散 RL 的异步吞吐、LoRA IPC 权重同步 | 已核查 2026-10-12,暂不吸收(见下) |
