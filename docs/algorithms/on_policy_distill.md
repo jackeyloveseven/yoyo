@@ -89,6 +89,15 @@ LCM 自举信号噪声大但便宜;本方法信号更稳但每样本成本高 `n
   与教师网络的加载/冻结。
 - 源码可用不等于 GPU 就绪,晋级仍按 `USAGE.md` 的阶梯取 receipt。
 
+## 与 DiffSynth 参考实现的有意差异(人工复核确认,2026-10-13)
+
+1. **教师轨迹由调用方构造**:DiffSynth 在 trainer 内部跑教师循环;本零件保持纯
+   函数,不持有教师网络引用,教师循环写法见 `examples/train_on_policy_distill.py`。
+2. **`min_distill_idx` 只校验不使用**:DiffSynth 用它过滤低噪声时间步;本零件把
+   过滤责任留给调用方采样 `sigma` 时,参数仅作配置兼容透传。
+3. **损失用 MSE 而非伪 Huber**:与 DiffSynth 一致。LCM 零件用伪 Huber 是该方法
+   的独立选择,两者不互相约束。
+
 ## 出处
 
 - DiffSynth-Studio 的 OPD 实现(数学对照,按 ADR-0003 只参考数学不抄框架):

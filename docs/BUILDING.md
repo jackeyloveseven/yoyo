@@ -211,14 +211,11 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
   ADR-0005)。`algorithms/on_policy_distill/` + 8 单测 + 示例 8 + 契约卡 + 注册
   `on_policy_distill`;五道门全绿(85 测试)。**命名决策**:全名而非 `opd` 缩写,
   因仓库已有 `image_opd`(DiffusionOPD,不同方法,需 reward)——详见 ADR-0005。
-  **唯一遗留**:数学规格的人工复核(SOP 把关点 1/2),规格原文如下:
-
-  - 学生预测 v_student = model(x_t, t),重建 x0_student = x_t - t·v_student
-  - 教师多步 Euler 从 x_t 到 x0_teacher(no_grad,detach,由调用方计算)
-  - loss = MSE(x0_student, x0_teacher.detach()) × sample_weight
-  - 变体参数:num_distill_steps(教师步数,默认4)、min_distill_idx(最小蒸馏索引,默认0)
-  - 与 LCM 的区别:LCM 是相邻步自举一致性(无需教师),本方法是教师轨迹终点对齐
-    (需教师多步,信号更稳,每样本成本高 num_distill_steps 倍)
+  **数学规格已人工复核通过(2026-10-13,SOP 把关点 1/2 关闭)**:7 条规格逐条
+  对拍测试通过;与 DiffSynth 的三处有意差异经确认接受——①教师轨迹由调用方
+  构造(保零件纯函数);②`min_distill_idx` 只校验不使用(过滤责任在调用方采样
+  sigma);③损失用 MSE 而非伪 Huber(与 DiffSynth 一致;LCM 用伪 Huber 是另一
+  方法的独立选择)。SOP 全流程第二次走通,闭环。
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
 - **可视化接真实绘图/dashboard**:目前蓝图只给"建议清单"。**2026-10-13 评估:
   降级为"等 GPU 晋级后重估"**——示例是 CPU toy,返回聚合指标;真实曲线需要
