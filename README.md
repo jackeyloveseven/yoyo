@@ -151,10 +151,10 @@ class MyCustomAdapter(BaseModelAdapter):
 | **流 & 神经网络** | [`mmtrainer.nn`](src/mmtrainer/nn/) | 流插值、Euler/DPM2 求解器、WSD/余弦学习率、FSDP2、稀疏 LoRA-MoE |
 | **模型适配器** | [`mmtrainer.models`](src/mmtrainer/models/catalog.py) | Klein、Qwen-Image、Krea2、FireRed、SenseNova、HiDream |
 | **SFT/DPO/蒸馏** | [`mmtrainer.algorithms.sft_dpo`](src/mmtrainer/algorithms/sft_dpo/) | Flow SFT、耦合噪声 DPO、OPD、DMD2、GT-Reg、NormGuard、REPA |
-| **少步蒸馏** | [`mmtrainer.algorithms.latent_consistency`](src/mmtrainer/algorithms/latent_consistency/) | LCM 一致性自举损失(相邻 ODE 步,无需教师多步 rollout) |
+| **少步蒸馏** | [`mmtrainer.algorithms.latent_consistency`](src/mmtrainer/algorithms/latent_consistency/) · [`mmtrainer.algorithms.on_policy_distill`](src/mmtrainer/algorithms/on_policy_distill/) | LCM 一致性自举(相邻 ODE 步,无需教师多步 rollout);On-Policy Distillation(教师多步轨迹终点对齐) |
 | **在线 RL** | [`mmtrainer.algorithms`](src/mmtrainer/algorithms/catalog.py) | DiffusionNFT、非对称 DPO、Flow-GRPO、DiffusionOPSD、FlowMimic-OPSD、Edit-R1 |
 | **数据集** | [`mmtrainer.datasets`](src/mmtrainer/datasets/manifest.py) | T2I、单/多参考编辑、偏好对的 JSONL 清单加载 |
-| **奖励** | [`mmtrainer.rewards`](src/mmtrainer/rewards/) | 5 点可微 ArcFace 身份损失、RationalRewards VLM 解析 |
+| **奖励** | [`mmtrainer.rewards`](src/mmtrainer/rewards/) | 身份相似度(ArcFace 5 点可微)、RationalRewards/Edit-R1 VLM 多维评分、HPSv3++、PickScore、OCR |
 | **运行时** | [`mmtrainer.runtime`](src/mmtrainer/runtime/checkpoints.py) | 原子 SHA-256 checkpoint 清单、紧凑 BF16 参数状态 |
 
 ---
@@ -191,7 +191,7 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 ### 更新流程与文档系统
 
 - [x] 上游雷达 + 评估标准 + 导入 SOP 固化成文
-- [x] `docs/adr/` 首批 4 篇 ADR(注册表/质量门/吸收原则/compose 边界)
+- [x] `docs/adr/` 首批 5 篇 ADR(注册表/质量门/吸收原则/compose 边界/OPD 命名)
 - [x] 6 个模型能力卡 + 注册表同步测试([`docs/models/`](docs/models/README.md))
 - [x] 定期核查节奏:三条触发规则(月度例行/上游发版/新需求触发,见 [`docs/sourcing/`](docs/sourcing/README.md))
 
