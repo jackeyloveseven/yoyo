@@ -123,9 +123,38 @@ LoRA 打前馈层,其它模型只打注意力层,LoRA 配置不可跨模型照�
 不兼容报错);56 测试全过;CLI 交互/非交互两模式实测。
 
 **遗留(下一步)**:
-- 蓝图暂只打印,不落 `blueprint.json`;需要时加 `--output`。
-- identity reward 若要可用,需注册为插件(架构决策)。
+- ~~蓝图暂只打印,不落 `blueprint.json`~~ → 2026-10-12 已补 `--output`(见下)。
+- identity reward 若要可用,需注册为插件(架构决策,仍未做)。
 - 可视化目前是"建议清单",尚未接真实绘图;未来可对接 dashboard。
+
+---
+
+## 2026-10:compose 蓝图落盘 `--output`(主线二收尾)
+
+**做了什么**:`mmtrain compose` 新增 `--output path.json / path.md`,把蓝图存成
+机器可消费的 json 或人可读的 Markdown,不只打印。新增纯函数
+`render_blueprint_markdown()`(compose 包内,可测),CLI 负责写文件。commit `6d9b3e1`。
+
+**为什么**:面向 agent 的闭环——agent 组完蓝图能存下来给下一步(如交给控制面、或
+贴进实验记录)直接消费,而不是复制终端文本。Markdown 含组件/概要/指标/可视化/晋级
+阶梯五段;无 reward 的目标不渲染 reward 小节(有同步测试守边界)。
+
+**验证**:测试 5 → 6(新增 markdown 章节覆盖与"无 reward 不渲染"边界);json/md 两
+格式落盘实测;全门绿。
+
+---
+
+## 2026-10:LCM 端到端示例(第 7 个 example)
+
+**做了什么**:`examples/train_lcm_distill.py`——在线学生 + EMA 目标网络 + 相邻步
+自举 + `lcm_consistency_loss` + EMA 更新,完整一步 LCM 训练,CPU 可跑,返回
+`total_loss`/`consistency_rms` 等指标。登记进 `examples/README.md` 与根 README。
+commit `27451f8`。
+
+**为什么**:让新方法从"零件"变成"能跑起来看效果";给 compose 蓝图里"学生一步 vs
+教师多步对比"这句建议一个真实代码落点。
+
+**验证**:示例实跑输出健康(`consistency_rms=0.0157`,学生一步映射形状正确);全门绿。
 
 ---
 
@@ -169,9 +198,18 @@ structure);测试 56 → 75(+19),含解析梯度对拍(证明 Euler 步无二阶
 
 ## 待办与已知边界(动态更新)
 
+截至 2026-10-12 收工:
+
 - **GPU 晋级**:所有模型 `launch_enabled=false`;需 WebTrainer 跑晋级阶梯,本仓库无法完成。
+- **identity reward 注册为插件**:compose 时发现它仅是 examples 里的函数。让 ArcFace
+  身份相似度奖励可用于 RL 目标(人脸/身份保持编辑刚需)。小而完整的架构决策,**建议
+  作为下一个任务**。
+- **示例"指标+可视化+下一步"卡**(主线一遗留):给 7 个示例各补一页实验卡,与 compose
+  蓝图呼应。
 - **上游雷达**:已核 4/8(Miles、Diffusers、Musubi、SimpleTuner),余 SGLang、vLLM、
-  DiffSynth(与本仓库相关性较低,可缓)。
+  DiffSynth(相关性较低,可缓)。
+- **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
+- **可视化接真实绘图/dashboard**:目前蓝图只给"建议清单"。
 
 > 2026-10-12 更新:`docs/adr/` 首批 4 篇 ADR 已补录(注册表/质量门/吸收原则/compose
 > 边界),本日志相应条目即其素材来源。
