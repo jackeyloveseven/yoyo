@@ -36,4 +36,4 @@ Each card lists what the example actually returns (verified against the source),
 | `train_rl_diffusionnft` | `total_loss`, `policy_loss`, `kl_loss`, `identity_loss`, `mean_optimality` | reward curve (optimality); identity alignment heatmap | frozen eval with held-out prompts |
 | `train_rl_flow_grpo` | `total_loss`, `ppo_policy_loss`, `ppo_kl_loss`, `opsd_loss` | PPO loss curve + reward distribution histogram | frozen eval + ablation vs. no-OPSD |
 | `train_lcm_distill` | `total_loss`, `raw_huber_mean`, `consistency_rms`, `clean_online_shape`, `sigma_curr_range` | 1-step vs. multi-step sample grid; consistency_rms curve (should decrease) | few-step sampling quality vs. teacher |
-| `custom_model_and_infer` | inference output shape | generated sample grid | register adapter in `PluginRegistry` → `mmtrain compose` |
+| `custom_model_and_infer` | `registered_plugin_id`, `adapter_model_id`, `sft_loss`, `rollout_steps`, `output_shape` | generated sample grid | register adapter in `PluginRegistry` → `mmtrain compose` |
