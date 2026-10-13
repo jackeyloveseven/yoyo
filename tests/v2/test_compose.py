@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import json
+from argparse import Namespace
+from pathlib import Path
+
 import pytest
 
+from mmtrainer.cli import _run_compose
 from mmtrainer.compose import (
     ComposeChoice,
     build_blueprint,
@@ -97,3 +102,26 @@ def test_render_blueprint_markdown_covers_sections(registries) -> None:
         ComposeChoice(model_id="klein", objective_id="image_sft", reward_id="none"),
     )
     assert "### reward 指标" not in render_blueprint_markdown(sft)
+
+
+def test_compose_output_json_and_markdown(tmp_path: Path) -> None:
+    """--output writes valid JSON or Markdown; unsupported suffix raises."""
+    base_args = dict(model="krea2", objective="flow_grpo", reward="hpsv3pp")
+
+    json_path = tmp_path / "blueprint.json"
+    _run_compose(Namespace(**base_args, output=json_path))
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["model"] == "krea2"
+    assert payload["objective"] == "flow_grpo"
+    assert payload["reward"] == "hpsv3pp"
+    assert payload["metrics"] and payload["visualizations"]
+
+    md_path = tmp_path / "blueprint.md"
+    _run_compose(Namespace(**base_args, output=md_path))
+    text = md_path.read_text(encoding="utf-8")
+    assert text.startswith("# 训练蓝图:krea2 × flow_grpo")
+    assert "## 该监控的实验指标" in text
+
+    bad_path = tmp_path / "blueprint.txt"
+    with pytest.raises(ValueError, match="只支持 .json 或 .md"):
+        _run_compose(Namespace(**base_args, output=bad_path))
