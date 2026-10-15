@@ -38,7 +38,6 @@ from mmtrainer.registry import build_builtin_registries
 
 ROOT = Path(__file__).resolve().parents[2]
 README = ROOT / "README.md"
-PYPROJECT = ROOT / "pyproject.toml"
 SNAPSHOT_JS = ROOT / "site" / "assets" / "registry-data.js"
 INDEX_HTML = ROOT / "site" / "index.html"
 PROMO_PY = ROOT / "site" / "promo" / "render_promo.py"
@@ -46,6 +45,12 @@ SOURCING_README = ROOT / "docs" / "sourcing" / "README.md"
 
 MARKETING_EXCLUDED_MODELS = frozenset({"firered"})
 MARKETING_EXCLUDED_REWARDS = frozenset({"none"})
+
+# 三处展示面文本:module 级读一次(同一进程内重复 read_text 纯属浪费)。
+_INDEX_HTML_TEXT = INDEX_HTML.read_text(encoding="utf-8")
+_PROMO_SOURCE = PROMO_PY.read_text(encoding="utf-8")
+_README_TEXT = README.read_text(encoding="utf-8")
+_SOURCING_README_TEXT = SOURCING_README.read_text(encoding="utf-8")
 
 # 站点统计瓷砖:标签关键词 → _display_counts() 的键;None = 测试数,按下限校验。
 SITE_TILES: dict[str, str | None] = {
@@ -72,16 +77,15 @@ CN_DIGITS = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 
 
 def _cn_int(text: str) -> int:
     """解析 1..99 的简单中文数字(十 / 十五 / 二十)。"""
-    if text == "十":
-        return 10
     if "十" in text:
         head, _, tail = text.partition("十")
         return (CN_DIGITS[head] if head else 1) * 10 + (CN_DIGITS[tail] if tail else 0)
     return CN_DIGITS[text]
 
 
+@lru_cache(maxsize=1)
 def _display_counts() -> dict[str, int]:
-    """展示面全部数字的唯一来源:注册表实时数据 + 仓库文件树。"""
+    """展示面全部数字的唯一来源:注册表实时数据 + 仓库文件树(结果缓存)。"""
     registries = build_builtin_registries()
     models = {entry.plugin_id for entry in registries.models.entries()}
     rewards = {entry.plugin_id for entry in registries.rewards.entries()}
@@ -91,11 +95,9 @@ def _display_counts() -> dict[str, int]:
         "objectives": len(registries.objectives.entries()),
         "rewards": len(rewards),
         "rewards_shown": len(rewards - MARKETING_EXCLUDED_REWARDS),
-        "examples": len(sorted((ROOT / "examples").glob("*.py"))),
-        "adr": len(sorted((ROOT / "docs" / "adr").glob("[0-9]*.md"))),
-        "radar": len(
-            re.findall(r"^\| \[[^\]]+\]\(https?://", SOURCING_README.read_text("utf-8"), re.M)
-        ),
+        "examples": len(list((ROOT / "examples").glob("*.py"))),
+        "adr": len(list((ROOT / "docs" / "adr").glob("[0-9]*.md"))),
+        "radar": len(re.findall(r"^\| \[[^\]]+\]\(https?://", _SOURCING_README_TEXT, re.M)),
     }
 
 
@@ -121,6 +123,28 @@ def _collected_tests() -> int:
     match = re.search(r"(\d+) tests? collected", proc.stdout)
     assert match, f"解析不了 pytest 收集结果:\n{proc.stdout[-400:]}\n{proc.stderr[-400:]}"
     return int(match.group(1))
+
+
+def _promo_scene_durations() -> list[float]:
+    """render_promo.py 分镜表的时长序列(站点/宣传片/README 三处共用)。"""
+    return [
+        float(d) for d in re.findall(r'@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', _PROMO_SOURCE)
+    ]
+
+
+def _assert_count(pattern: str, text: str, expected: int, label: str) -> None:
+    """断言 text 里 pattern 抠出的数字恰好等于 expected(统一错误消息)。"""
+    found = [int(n) for n in re.findall(pattern, text)]
+    assert found == [expected], f"{label}: 写 {found},代码是 {expected}"
+
+
+def _assert_test_floor(claims: list[int], label: str) -> None:
+    """测试数按下限断言:宣称值不得高于真实收集数(虚报即红,新增测试不假红)。"""
+    assert claims, f"{label}: 找不到测试数声明"
+    collected = _collected_tests()
+    assert all(claim <= collected for claim in claims), (
+        f"{label} 宣称测试数 {claims},实际只收集到 {collected}"
+    )
 
 
 def _snapshot_data() -> dict[str, Any]:
@@ -237,7 +261,7 @@ def test_site_matrix_matches_live_registry() -> None:
 
 def test_site_display_numbers_trace_to_code() -> None:
     """index.html 的每个对外数字都必须等于代码里的真实值(对外数字红线)。"""
-    html = INDEX_HTML.read_text(encoding="utf-8")
+    html = _INDEX_HTML_TEXT
     counts = _display_counts()
     floor_claims: list[int] = []
 
@@ -275,40 +299,31 @@ def test_site_display_numbers_trace_to_code() -> None:
         pairs
     )
 
-    # ⑤ ADR 篇数(阿拉伯与中文数字两种写法)与示例数(中文数字)
-    assert [int(n) for n in re.findall(r"读全部 (\d+) 篇 ADR", html)] == [counts["adr"]]
+    # ⑤ ADR 篇数与示例数(中文数字)
+    _assert_count(r"读全部 (\d+) 篇 ADR", html, counts["adr"], "站点 ADR 篇数")
     cn_examples = re.findall(r"从 SFT 到 RL ([一二三四五六七八九十]+)\s*个示例", html)
     assert [_cn_int(t) for t in cn_examples] == [counts["examples"]], cn_examples
 
     # ⑥ 上游雷达项目数
-    radar = [int(n) for n in re.findall(r"上游雷达监测 (\d+) 个活跃项目", html)]
-    assert radar == [counts["radar"]], f"站点写 {radar},雷达清单是 {counts['radar']} 行"
+    _assert_count(r"上游雷达监测 (\d+) 个活跃项目", html, counts["radar"], "站点雷达项目数")
 
     # ⑦ 视频时长与分镜数(由 render_promo.py 的分镜表定义)
-    source = PROMO_PY.read_text(encoding="utf-8")
-    durations = [float(d) for d in re.findall(r'@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', source)]
-    scenes = re.findall(r'@scene\(\s*"([a-z_]+)"\s*,\s*[\d.]+\s*\)', source)
-    assert [int(n) for n in re.findall(r"(\d+) 秒看完", html)] == [int(sum(durations))], (
-        f"站点时长与分镜表总时长 {sum(durations)}s 不一致"
-    )
+    durations = _promo_scene_durations()
+    _assert_count(r"(\d+) 秒看完", html, int(sum(durations)), "站点宣传片时长")
     cn_scenes = re.findall(r"([一二三四五六七八九十]+)个分镜", html)
-    assert [_cn_int(t) for t in cn_scenes] == [len(scenes)], (
-        f"站点分镜数 {cn_scenes} != 分镜表 {len(scenes)}"
+    assert [_cn_int(t) for t in cn_scenes] == [len(durations)], (
+        f"站点分镜数 {cn_scenes} != 分镜表 {len(durations)}"
     )
 
     # ⑧ 测试数:按下限断言(站点与宣传片各一份,宣传片那份烤进了 MP4)
     floor_claims += [int(n) for n in re.findall(r"(\d+)\s*个?数值不变量测试?", html)]
     floor_claims += [int(n) for n in re.findall(r"# (\d+) passed", html)]
-    assert floor_claims, "找不到测试数声明"
-    collected = _collected_tests()
-    assert all(claim <= collected for claim in floor_claims), (
-        f"站点宣称测试数 {floor_claims},实际只收集到 {collected}"
-    )
+    _assert_test_floor(floor_claims, "站点")
 
 
 def test_video_display_numbers_trace_to_code() -> None:
     """宣传片分镜里的数字瓷砖与上镜数字,同样必须与代码同源。"""
-    source = PROMO_PY.read_text(encoding="utf-8")
+    source = _PROMO_SOURCE
     counts = _display_counts()
 
     block = re.search(r"tiles = \[(.*?)\n    \]", source, re.S)
@@ -329,19 +344,15 @@ def test_video_display_numbers_trace_to_code() -> None:
             assert int(raw) == counts[key], f"宣传片瓷砖「{label}」写 {raw},代码是 {counts[key]}"
 
     # 其余上镜数字
-    assert [int(n) for n in re.findall(r"(\d+) 个自包含示例", source)] == [counts["examples"]]
-    assert [int(n) for n in re.findall(r"(\d+) 个活跃项目", source)] == [counts["radar"]]
+    _assert_count(r"(\d+) 个自包含示例", source, counts["examples"], "宣传片示例数")
+    _assert_count(r"(\d+) 个活跃项目", source, counts["radar"], "宣传片雷达项目数")
     floor_claims += [int(n) for n in re.findall(r"(\d+) 个数值不变量", source)]
-    assert floor_claims, "找不到宣传片里的测试数声明"
-    collected = _collected_tests()
-    assert all(claim <= collected for claim in floor_claims), (
-        f"宣传片宣称测试数 {floor_claims},实际只收集到 {collected}"
-    )
+    _assert_test_floor(floor_claims, "宣传片")
 
 
 def test_readme_display_numbers_trace_to_code() -> None:
     """根 README 的对外数字必须与代码同源(它自称受"文档同步测试"约束,此前却无人读它)。"""
-    text = README.read_text(encoding="utf-8")
+    text = _README_TEXT
     counts = _display_counts()
     floor_claims: list[int] = []
 
@@ -354,7 +365,7 @@ def test_readme_display_numbers_trace_to_code() -> None:
         CYCLOMATIC_COMPLEXITY,
         DUPLICATE_TOKEN_WINDOW,
     ), f"README 写 {gates.groups()},audit.py 是 800/120/15/50"
-    assert [int(n) for n in re.findall(r"单文件强制 ≤(\d+) 行", text)] == [CORE_FILE_LINES]
+    _assert_count(r"单文件强制 ≤(\d+) 行", text, CORE_FILE_LINES, "README 文件行数门")
 
     # ② 目标与奖励数(对比表那行)
     pairs = re.findall(r"内置 (\d+) 个可跑目标.*?\+ (\d+) 个奖励后端", text)
@@ -363,15 +374,14 @@ def test_readme_display_numbers_trace_to_code() -> None:
     )
 
     # ③ 上游雷达项目数(定位段与交付总结两处,后者跨行)
-    assert [int(n) for n in re.findall(r"上游雷达监测 (\d+) 个活跃项目", text)] == [counts["radar"]]
+    _assert_count(r"上游雷达监测 (\d+) 个活跃项目", text, counts["radar"], "README 雷达项目数")
     checked = re.findall(r"上游雷达\s+(\d+)/(\d+) 首轮核查完毕", text)
     assert [tuple(map(int, c)) for c in checked] == [(counts["radar"], counts["radar"])], checked
 
     # ④ CPU 示例数与宣传片时长
-    assert [int(n) for n in re.findall(r"①(\d+) 个 CPU 示例", text)] == [counts["examples"]]
-    source = PROMO_PY.read_text(encoding="utf-8")
-    durations = [float(d) for d in re.findall(r'@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', source)]
-    assert [int(n) for n in re.findall(r"含 (\d+) 秒宣传片", text)] == [int(sum(durations))]
+    _assert_count(r"①(\d+) 个 CPU 示例", text, counts["examples"], "README 示例数")
+    durations = _promo_scene_durations()
+    _assert_count(r"含 (\d+) 秒宣传片", text, int(sum(durations)), "README 宣传片时长")
 
     # ⑤ 两处模型清单的条目数必须等于注册表(第 21 行那处曾漏掉 Qwen-Image-Edit 2.x)
     lists = re.findall(r"Klein、([^|）]+)", text)
@@ -385,8 +395,4 @@ def test_readme_display_numbers_trace_to_code() -> None:
     # ⑥ 测试数:按下限(与站点/宣传片同一策略)
     floor_claims += [int(n) for n in re.findall(r"(\d+) 数值不变量测试", text)]
     floor_claims += [int(n) for n in re.findall(r"(\d+)\+ 单元与集成测试", text)]
-    assert floor_claims, "找不到 README 里的测试数声明"
-    collected = _collected_tests()
-    assert all(claim <= collected for claim in floor_claims), (
-        f"README 宣称测试数 {floor_claims},实际只收集到 {collected}"
-    )
+    _assert_test_floor(floor_claims, "README")

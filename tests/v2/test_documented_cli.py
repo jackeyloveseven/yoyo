@@ -57,8 +57,15 @@ def _documented_commands() -> list[tuple[str, str]]:
     return commands
 
 
+_REDIRECT_DIR = tempfile.TemporaryDirectory(prefix="cli-doc-")
+
+
 def _redirect_outputs(argv: list[str]) -> list[str]:
-    """把 ``--output``/``-o`` 的目标改到临时文件,保住参数结构但消除落盘副作用。"""
+    """把 ``--output``/``-o`` 的目标改到共享临时目录,保住参数结构但消除落盘副作用。
+
+    复用一个 ``TemporaryDirectory``(进程退出自动清理),而不是每个 --output 新建
+    mkdtemp——后者会在 /tmp 累积目录,CI 上越攒越多。
+    """
     redirected: list[str] = []
     skip_next = False
     for i, token in enumerate(argv):
@@ -67,7 +74,7 @@ def _redirect_outputs(argv: list[str]) -> list[str]:
             continue
         if token in ("--output", "-o") and i + 1 < len(argv):
             suffix = Path(argv[i + 1]).suffix or ".out"
-            redirected += [token, str(Path(tempfile.mkdtemp(prefix="cli-doc-")) / f"out{suffix}")]
+            redirected += [token, str(Path(_REDIRECT_DIR.name) / f"out{i}{suffix}")]
             skip_next = True
         else:
             redirected.append(token)
