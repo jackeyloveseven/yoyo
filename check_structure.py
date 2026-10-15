@@ -14,6 +14,7 @@ EXAMPLE_LINE_BUDGET = 160
 
 REQUIRED_COMPONENT_PATHS: tuple[str, ...] = (
     "check_docs.py",
+    "check_structure.py",
     "check_v2_quality.py",
     "docs/algorithms",
     "docs/models",

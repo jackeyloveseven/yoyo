@@ -26,9 +26,9 @@
 | 5 | "`fsdp2.py` 耦合固定 8-GPU/Node 假设" | `SUPPORTED_WORLD_SIZES = (1,2,4,8,16,24,32)`（`src/mmtrainer/nn/fsdp2.py:11`）明文声明；"8" 只是 `GPUS_PER_NODE=8`（`fsdp2.py:12`，每节点卡数默认），非"固定 8 卡"。 | ⚠️ 误读 |
 | 6 | "`nn/flow.py` 缺 heun / SDE 漂移 / log-prob 算子" | 属实：现有算子为 `euler_flow_step`、`dpm2_flow_step`。但这是**已知的 v2 边界**（`launch_enabled=false`，GPU 晋级未完成），不是遗漏。 | ✅ 属实/属计划内 |
 | 7 | "Zero Torch-Import at CLI Core"（列为已实现的哲学） | 属实且已做到：`cli.py` / `config/` 的模块级 import 无 torch；`runtime/checkpoints.py` 亦模块级零 torch（函数内按需 import）。 | ✅ 已实现 |
-| 8 | "`docs/` 与 `site/` 双写漂移，需建立 SSOT" | **部分成立**。docs 侧 SSOT 已存在（`test_model_cards.py` 强制能力矩阵与注册表一致）；site 侧有缺口：`site/assets/registry-data.js` 自述"由 `test_model_cards.py` 强制一致"，但该测试并不读它——页面快照无测试覆盖，且缺 `firered` 条目（页面以"6 个（本页展示）"规避）。评审方向对，机制描述错。 | ⚠️ 部分成立 |
-| 9 | "在站点自动生成 6×10 模型×算法支持度矩阵" | **该成果尚不存在**，此条成立，与 #8 的修复同路。 | ✅ 值得做 |
-| 10 | "<50ms 完成能力契约与显存水位校验" | **数字无依据，实测更有利**：`validate()` 本体 1.4ms（全链路 143ms，其中 import 142ms）。"显存水位校验"也不存在。方向对、数字编造、功能指称错误。 | ⚠️ 数字无依据 |
+| 8 | "`docs/` 与 `site/` 双写漂移，需建立 SSOT" | **部分成立，范围还比评审说的更大**。docs 侧 SSOT 已存在（`test_model_cards.py`）；site 侧有**三处**硬编码面（快照 `registry-data.js`、`index.html` 手写矩阵与全部数字、宣传片数字瓷砖），此前只有 docs 侧受测试——2026-10-14 已补 `test_site_display_sync.py` 把三处钉死。快照缺 `firered` 是**有意的营销红线**（commit `da715d1`，与宣传片"FireRed 不上镜"同源），非漂移。 | ⚠️ 部分成立 |
+| 9 | "在站点自动生成 6×10 模型×算法支持度矩阵" | 矩阵**早已存在**（`index.html` 手写 60 格），缺的不是矩阵而是覆盖——2026-10-14 已补测试逐格断言 `required ⊆ capabilities`。"自动生成"未做：手写矩阵已被测试钉死，生成器是另一件事。 | ⚠️ 半数成立 |
+| 10 | "<50ms 完成能力契约与显存水位校验" | **数字无依据，实测更有利**：`validate()` 本体 1.4ms（全链路 143ms，其中 import 142ms）。"显存水位校验"也不存在。方向对、数字编造、功能指称错误。**自省**：本站三处"25 行 `BaseModelAdapter`"同样无代码对应物（协议本体 17 行 / 最小适配器类 32 行 / 最小文件 106 行），已列为已知未验证 claim。 | ⚠️ 数字无依据 |
 | 11 | "`pyproject.toml` 仅有 `[test]` 可选依赖" | 属实：现有可选组为 `test` 与 `checkpoint`。此条成立。 | ✅ 属实 |
 
 ---
@@ -48,16 +48,16 @@
 
 ### 采纳（不违反现有设计、体量可控、收益真实）
 
-1. **站点"模型×算法支持度矩阵"+ site 快照测试覆盖**（对账 #8/#9，合并为一项）
-   - 从注册表自动生成支持度矩阵，接入 `check_docs.py`，顺带把 `receipts/` 验证状态入图；
-   - 给 `site/assets/registry-data.js` 补上真正的同步测试（它自述受
-     `test_model_cards.py` 约束，但该测试不读它——本次核查发现的缺口）。
-2. **`pyproject.toml` 补 `gpu` / `rl` / `export` / `all` 可选依赖分组**（对账 #11）
-   - 纯配置，零风险，不碰 LOC 预算。
+1. **站点展示面的 SSOT 覆盖**（对账 #8/#9）
+   - site 三处硬编码面 2026-10-14 已补 `test_site_display_sync.py`（逐格断言矩阵、逐数字
+     断言站点与宣传片）；"从注册表自动生成矩阵"未做——手写矩阵已由测试钉死。
+2. **`pyproject.toml` 可选依赖分组**（对账 #11）
+   - 纯配置。按真实依赖面命名：src 第三方仅五个，`gpu`/`rl`/`export` 无内容可装，
+     造空组即 speculative；真实缺口 `promo`（matplotlib/numpy/Pillow，CI 未装曾致
+     三连红）2026-10-14 已补。
 3. **宣传视频：吸收"叙事优先"思路，但用实测数字**
-   - Act 1（预检对比）+ Act 3（流匹配轨迹动力学）确有意义；"<50ms"须先实测再上镜
-     （实测 1.4ms，更有利）——每个数字与代码同源是本仓库红线；
-   - Act 2（三层解耦）现有 `parts` 分镜已在做；Act 3 是 `flow` 分镜的自然延伸。
+   - Act 1（预检对比）+ Act 3（流匹配轨迹动力学）确有意义；"<50ms"须先实测再上镜（实测
+     1.4ms，更有利）。Act 2 现有 `parts` 分镜已在做；Act 3 是 `flow` 分镜的自然延伸。
 
 ### 拒绝或延后（依赖不存在的前提 / speculative）
 

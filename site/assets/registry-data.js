@@ -1,7 +1,7 @@
 /* YoYo 注册表离线快照 — 由 build_builtin_registries() 生成，请勿手改 */
 window.YOYO_REGISTRY = {
  "source": "mmtrainer.registry build_builtin_registries()",
- "note": "离线内联快照；与 docs/models/README.md 同源，由 tests/v2/test_model_cards.py 强制一致。",
+ "note": "离线内联快照；由 tests/v2/test_site_display_sync.py 强制与 build_builtin_registries() 一致（同文件还钉死 index.html 的手写矩阵与全部对外数字）。firered 按 commit da715d1 的营销红线不出现在展示面（与宣传片'FireRed 不上镜'同源），reward 'none' 为空占位不展示。",
  "models": [
   {
    "id": "hidream",
