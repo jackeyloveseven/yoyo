@@ -259,10 +259,9 @@ build_audio 在渐变赋值处 broadcast 崩溃——时间轴全部改由采样
 ~40px。③配乐重写为苹果产品片听感:Am–F–C–G 和声进行、电钢琶音(基频+八度/
 十二度泛音、8ms 起音+指数衰减)、每小节 sub 脉冲,tanh 软限幅。
 
-**为什么手排下标不可取**:曾考虑 pillow 手搓(变量用 Serif Italic、下标缩小下移),
-但 mathtext 是现成且正确的方案——手工对齐下标/基线极易在某个字号下错位,
-而这类错误肉眼看不出。matplotlib 已在环境里(checkpoint extra 经 torchvision
-引入),无新增依赖。
+**为什么手排下标不可取**:曾考虑 pillow 手搓,但 mathtext 现成且正确——手工对齐
+下标/基线极易在某个字号下错位,这类错误肉眼看不出。matplotlib 由 `promo` extra
+显式引入——初版误记为"经 torchvision 顺带带入",被 CI 三连红证伪。
 
 **踩坑(自查发现)**:baseline 卡片正文用 `$x_t=...$` 包裹公式,渲染时只剥了
 前导 `$` 漏了尾随 `$`,导致 `$x_t = (1-t)\\,x_0...` 整串 LaTeX 源码**原样上镜**

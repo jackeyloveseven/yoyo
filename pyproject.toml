@@ -40,6 +40,14 @@ checkpoint = [
   "torchvision>=0.16",
   "Pillow>=10.0",
 ]
+# 宣传物料:site/promo/render_promo.py 与 tests/v2/test_promo_video.py 的真实依赖。
+# matplotlib 是 math_image() 的函数内 import(CI 不装则 test_formulas_are_typeset
+# 直接 ImportError 红),numpy/Pillow 为渲染器与测试共用的模块级依赖。
+promo = [
+  "matplotlib>=3.8",
+  "numpy",
+  "Pillow>=10.0",
+]
 
 [project.scripts]
 mmtrain = "mmtrainer.cli:main"
