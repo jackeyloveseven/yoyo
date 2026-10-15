@@ -103,7 +103,7 @@
         <ul class="ticks">
           <li>加噪 <code>x_t=(1−t)x₀+t·noise</code>、Euler/DPM2 写死在基座层，全仓库共享</li>
           <li>新算法 = 一个独立 loss 函数 + 注册一行</li>
-          <li>新模型 = 25 行 <code>BaseModelAdapter</code>，立刻用全部目标</li>
+          <li>新模型 = 一个 <code>BaseModelAdapter</code>，立刻用全部目标</li>
           <li>97 个数值不变量测试守 detach 边界、零方差组、FP32 路径</li>
         </ul>
       </div>
@@ -452,7 +452,7 @@
           <tr><th scope="row">组织方式</th><td>配置驱动：往现成 trainer 框架里填参数</td><td class="col-yoyo">零件驱动：注册表 + 适配器 + 纯函数，自己拼装</td></tr>
           <tr><th scope="row">核心文件</th><td>训练进程是超大类（SDTrainer.py 约 129KB）</td><td class="col-yoyo">零件是小函数，单文件强制 ≤800 行（质量门拦截）</td></tr>
           <tr><th scope="row">加新算法</th><td>在 trainer 的扩展点内开发</td><td class="col-yoyo">写一个独立 loss 函数丢进 <code>algorithms/</code>，注册一行</td></tr>
-          <tr><th scope="row">加新模型</th><td>用它的 model registry 接入</td><td class="col-yoyo">写 25 行 <code>BaseModelAdapter</code>，立刻用全部算法</td></tr>
+          <tr><th scope="row">加新模型</th><td>用它的 model registry 接入</td><td class="col-yoyo">写一个 <code>BaseModelAdapter</code>，立刻用全部算法</td></tr>
           <tr><th scope="row">RL / DPO</th><td>main 分支未见内置实现</td><td class="col-yoyo">一等公民：10 个目标 + 7 个奖励后端</td></tr>
           <tr><th scope="row">质量保障</th><td>社区驱动、迭代快，CI 不跑测试</td><td class="col-yoyo">每次提交强制过 AST 门 + 97 数值不变量测试 + 文档门</td></tr>
         </tbody>
@@ -535,7 +535,7 @@
 <section class="sec cta-final" id="cta">
   <div class="wrap">
     <h2>换零件，不换整套脚本</h2>
-    <p>接入一个新模型只要 25 行适配器，就能用全部现成的损失函数和求解器。</p>
+    <p>接入一个新模型只要一个适配器，就能用全部现成的损失函数和求解器。</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="https://github.com/jackeyloveseven/yoyo">GitHub 仓库</a>
       <a class="btn btn-ghost" href="https://github.com/jackeyloveseven/yoyo/blob/main/docs/onboarding.md">入门导读</a>

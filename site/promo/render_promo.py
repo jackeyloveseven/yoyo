@@ -399,7 +399,7 @@ def sc_parts(img, draw, t01: float) -> None:
     parts = [
         ("nn/", "流插值 · Euler/DPM2 求解器 · 学习率表"),
         ("algorithms/", "SFT / DPO / 蒸馏 / RL 损失,纯函数"),
-        ("models/", "模型适配器,25 行接入新模型"),
+        ("models/", "模型适配器,接入新模型"),
         ("datasets/", "JSONL 清单加载"),
         ("rewards/", "ArcFace 身份 · VLM 评分 · 美学分"),
     ]

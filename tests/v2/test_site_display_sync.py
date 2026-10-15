@@ -47,11 +47,6 @@ SOURCING_README = ROOT / "docs" / "sourcing" / "README.md"
 MARKETING_EXCLUDED_MODELS = frozenset({"firered"})
 MARKETING_EXCLUDED_REWARDS = frozenset({"none"})
 
-# 已知未验证的展示claim:对外文案说"写 25 行适配器接入新模型",但代码里没有对应物——
-# BaseModelAdapter 协议本体 17 行、最小的具体适配器类 17 行、模型注册项 6 行、
-# 最小适配器文件 106 行。不发明度量迁就文案,只钉住它的数值与出现处,逼改动显式经过本测试。
-UNVERIFIED_ADAPTER_LINE_CLAIM = 25
-
 # 站点统计瓷砖:标签关键词 → _display_counts() 的键;None = 测试数,按下限校验。
 SITE_TILES: dict[str, str | None] = {
     "训练目标": "objectives",
@@ -394,23 +389,4 @@ def test_readme_display_numbers_trace_to_code() -> None:
     collected = _collected_tests()
     assert all(claim <= collected for claim in floor_claims), (
         f"README 宣称测试数 {floor_claims},实际只收集到 {collected}"
-    )
-
-
-def test_unverified_adapter_line_claim_is_pinned() -> None:
-    """对外文案的"N 行适配器"没有代码对应物,只钉住它的数值,让改动显式经过本测试。
-
-    要么主线给它一个可复现的度量(例如"最小的具体适配器类 = 17 行"),要么删掉这个数字。
-    见 UNVERIFIED_ADAPTER_LINE_CLAIM 处的实测值。
-    """
-    occurrences: list[int] = []
-    for path in (README, INDEX_HTML, PROMO_PY):
-        text = path.read_text(encoding="utf-8")
-        occurrences += [
-            int(n)
-            for n in re.findall(r"(\d+)\s*行\s*(?:`BaseModelAdapter`|适配器|接入新模型)", text)
-        ]
-    assert occurrences, "找不到适配器行数 claim"
-    assert set(occurrences) == {UNVERIFIED_ADAPTER_LINE_CLAIM}, (
-        f"适配器行数 claim 出现在 {occurrences};改它之前请先给它一个可复现的度量"
     )

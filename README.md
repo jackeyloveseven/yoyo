@@ -20,7 +20,7 @@ YoYo 把这些**公共零件抽出来，各放一处，各自单测**：
 - 损失函数（SFT / DPO / 蒸馏 / GRPO / NFT / OPSD）→ 在 [`src/mmtrainer/algorithms/`](src/mmtrainer/algorithms/)，只做数学，不 import 模型。
 - 每个模型（Klein、Qwen-Image、Qwen-Image-Edit 2.x、Krea2、FireRed、SenseNova、HiDream）→ 只写一个适配器，把"我的张量长什么样"翻译成公共接口。
 
-**想换一种训练方式？换零件，不换整套脚本。** 想接入一个新模型？写 25 行适配器，就能用全部现成的损失函数和求解器。
+**想换一种训练方式？换零件，不换整套脚本。** 想接入一个新模型？写一个适配器，就能用全部现成的损失函数和求解器。
 
 ---
 
@@ -46,7 +46,7 @@ YoYo 把这些**公共零件抽出来，各放一处，各自单测**：
 | **组织方式** | 配置驱动：往现成的 trainer 框架里填参数 | 零件驱动：注册表 + 适配器 + 纯函数，自己拼装 |
 | **核心文件** | 训练进程是超大类（SDTrainer.py 约 129KB） | 零件是小函数，单文件强制 ≤800 行（质量门拦截） |
 | **加新算法** | 在 trainer 的扩展点内开发 | 写一个独立 loss 函数丢进 `algorithms/`，注册一行 |
-| **加新模型** | 用它的 model registry 接入 | 写 25 行 `BaseModelAdapter`，立刻用全部算法 |
+| **加新模型** | 用它的 model registry 接入 | 写一个 `BaseModelAdapter`，立刻用全部算法 |
 | **RL / DPO** | main 分支未见内置实现 | 一等公民，内置 10 个可跑目标（RL/DPO/蒸馏/SFT）+ 7 个奖励后端 |
 | **蒸馏** | 有 D-OPSD 自蒸馏分支（单一目标） | 多目标可叠加：OPD + DMD2 + NormGuard + REPA + LCM 同时组合 |
 | **图形界面** | 有 Web UI，点点鼠标就能训 | 无 UI，面向写代码的研究者 |
