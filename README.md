@@ -18,7 +18,7 @@ YoYo 把这些**公共零件抽出来，各放一处，各自单测**：
 
 - 加噪、Euler/DPM2 求解器、学习率表、LoRA-MoE、FSDP2 → 在 [`src/mmtrainer/nn/`](src/mmtrainer/nn/)，纯函数，不碰任何具体模型。
 - 损失函数（SFT / DPO / 蒸馏 / GRPO / NFT / OPSD）→ 在 [`src/mmtrainer/algorithms/`](src/mmtrainer/algorithms/)，只做数学，不 import 模型。
-- 每个模型（Klein、Qwen-Image、Krea2、FireRed、SenseNova、HiDream）→ 只写一个适配器，把"我的张量长什么样"翻译成公共接口。
+- 每个模型（Klein、Qwen-Image、Qwen-Image-Edit 2.x、Krea2、FireRed、SenseNova、HiDream）→ 只写一个适配器，把"我的张量长什么样"翻译成公共接口。
 
 **想换一种训练方式？换零件，不换整套脚本。** 想接入一个新模型？写 25 行适配器，就能用全部现成的损失函数和求解器。
 
@@ -63,11 +63,11 @@ YoYo 的目标不是"另一个训练脚本合集",而是做**扩散/流匹配后
 - **统一约定**:加噪 `x_t=(1-t)x_0+t·noise`、Euler/DPM2 求解器、FP32 上溢规则
   写在基座层,所有算法共享——杜绝每篇论文一套符号约定,对比实验从第一天就可比。
 - **结果可核对**:每个算法零件配契约卡(数值约定、detach 边界、失败模式)和一组
-  数值不变量测试,README 里的每个数字与代码同源,由文档同步测试强制一致。
+  数值不变量测试;对外数字由 `tests/v2/test_site_display_sync.py` 逐项钉到代码。
 - **论文到零件有标准路径**:上游雷达监测 8 个活跃项目 + import SOP 定义准入门槛
   与三个人工把关点,已走通 LCM 与 On-Policy Distillation 两个完整案例。
 
-项目主页(含 60 秒宣传片与交互式 compose 演示):
+项目主页(含 73 秒宣传片与交互式 compose 演示):
 [jackeyloveseven.github.io/yoyo](https://jackeyloveseven.github.io/yoyo/)
 
 ---

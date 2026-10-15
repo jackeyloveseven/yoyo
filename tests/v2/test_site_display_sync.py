@@ -1,23 +1,21 @@
-"""site 展示面(页面 + 宣传片)的矩阵与对外数字,必须与代码同源。
+"""site 展示面(页面 + 宣传片)与 README 的矩阵、对外数字,必须与代码同源。
 
-本仓库红线:对外材料里每个数字都能追溯到代码。site/ 有三处硬编码展示面,此前
-都无测试覆盖(外部评审 2026-10-14 的 #8/#9,经核实成立):
+本仓库红线:对外材料里每个数字都能追溯到代码。此前只有 docs/models/README.md 的
+矩阵受 test_model_cards.py 守,以下硬编码展示面**全都没有覆盖**(外部评审
+2026-10-14 的 #8/#9 指出的缺口,经核实范围比评审说的更大):
 
-① ``assets/registry-data.js`` —— compose 演示消费的离线快照;
+① ``assets/registry-data.js`` —— compose 演示消费的离线快照(手写,仓库里没有生成器);
 ② ``index.html`` —— 手写的 6×10 能力矩阵与全部统计数字;
-③ ``promo/render_promo.py`` —— 宣传片分镜里的数字瓷砖(同一组数字的第二份副本)。
+③ ``promo/render_promo.py`` —— 宣传片分镜里的数字瓷砖(同一组数字的第二份副本);
+④ ``README.md`` —— 根 README 的对外数字(它自称受"文档同步测试"约束,但此前没有
+   任何测试读它)。
 
 营销红线:firered 不上面向公众的展示面(commit da715d1,与宣传片"FireRed 不上镜"
 同源);reward ``none`` 是空占位不展示。这两个排除是**决策**不是漂移。
 
-断言策略:每个数字按其代码来源精确断言,唯一例外是**测试数**——站点与宣传片各
-有一份,而其中一份被烤进已渲染的 ``promo.mp4``,精确断言会逼着每加一个测试就重渲
-整支视频。故测试数按下限断言:堵住虚报,又不因新增测试而假红。
-
-已知未验证的展示claim(无法从代码推导,故不在此断言,留待主线决定去留):
-- "25 行 BaseModelAdapter"(站点 3 处、宣传片 1 处):代码里没有对应物——协议本体
-  17 行、最小的具体适配器类 32 行、最小适配器文件 106 行,均非 25。
-- "已完整走通两个案例":叙事claim,无机器可读来源。
+断言策略:每个数字按其代码来源精确断言,唯一例外是**测试数**——站点、README 与
+宣传片各有一份,而其中一份被烤进已渲染的 ``promo.mp4``,精确断言会逼着每加一个
+测试就重渲整支视频。故测试数按下限断言:堵住虚报,又不因新增测试而假红。
 """
 
 from __future__ import annotations
@@ -30,9 +28,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from mmtrainer.quality.audit import (
+    CORE_FILE_LINES,
+    CYCLOMATIC_COMPLEXITY,
+    DUPLICATE_TOKEN_WINDOW,
+    FUNCTION_LINES,
+)
 from mmtrainer.registry import build_builtin_registries
 
 ROOT = Path(__file__).resolve().parents[2]
+README = ROOT / "README.md"
+PYPROJECT = ROOT / "pyproject.toml"
 SNAPSHOT_JS = ROOT / "site" / "assets" / "registry-data.js"
 INDEX_HTML = ROOT / "site" / "index.html"
 PROMO_PY = ROOT / "site" / "promo" / "render_promo.py"
@@ -40,6 +46,11 @@ SOURCING_README = ROOT / "docs" / "sourcing" / "README.md"
 
 MARKETING_EXCLUDED_MODELS = frozenset({"firered"})
 MARKETING_EXCLUDED_REWARDS = frozenset({"none"})
+
+# 已知未验证的展示claim:对外文案说"写 25 行适配器接入新模型",但代码里没有对应物——
+# BaseModelAdapter 协议本体 17 行、最小的具体适配器类 17 行、模型注册项 6 行、
+# 最小适配器文件 106 行。不发明度量迁就文案,只钉住它的数值与出现处,逼改动显式经过本测试。
+UNVERIFIED_ADAPTER_LINE_CLAIM = 25
 
 # 站点统计瓷砖:标签关键词 → _display_counts() 的键;None = 测试数,按下限校验。
 SITE_TILES: dict[str, str | None] = {
@@ -330,4 +341,76 @@ def test_video_display_numbers_trace_to_code() -> None:
     collected = _collected_tests()
     assert all(claim <= collected for claim in floor_claims), (
         f"宣传片宣称测试数 {floor_claims},实际只收集到 {collected}"
+    )
+
+
+def test_readme_display_numbers_trace_to_code() -> None:
+    """根 README 的对外数字必须与代码同源(它自称受"文档同步测试"约束,此前却无人读它)。"""
+    text = README.read_text(encoding="utf-8")
+    counts = _display_counts()
+    floor_claims: list[int] = []
+
+    # ① 质量门阈值必须等于 audit.py 的常量
+    gates = re.search(r"单文件 ≤(\d+) 行、函数 ≤(\d+) 行、圈复杂度 ≤(\d+)、无 (\d+)-token", text)
+    assert gates, "README 的质量门那段改了措辞,请同步本测试"
+    assert tuple(int(n) for n in gates.groups()) == (
+        CORE_FILE_LINES,
+        FUNCTION_LINES,
+        CYCLOMATIC_COMPLEXITY,
+        DUPLICATE_TOKEN_WINDOW,
+    ), f"README 写 {gates.groups()},audit.py 是 800/120/15/50"
+    assert [int(n) for n in re.findall(r"单文件强制 ≤(\d+) 行", text)] == [CORE_FILE_LINES]
+
+    # ② 目标与奖励数(对比表那行)
+    pairs = re.findall(r"内置 (\d+) 个可跑目标.*?\+ (\d+) 个奖励后端", text)
+    assert [(int(o), int(r)) for o, r in pairs] == [(counts["objectives"], counts["rewards"])], (
+        pairs
+    )
+
+    # ③ 上游雷达项目数(定位段与交付总结两处,后者跨行)
+    assert [int(n) for n in re.findall(r"上游雷达监测 (\d+) 个活跃项目", text)] == [counts["radar"]]
+    checked = re.findall(r"上游雷达\s+(\d+)/(\d+) 首轮核查完毕", text)
+    assert [tuple(map(int, c)) for c in checked] == [(counts["radar"], counts["radar"])], checked
+
+    # ④ CPU 示例数与宣传片时长
+    assert [int(n) for n in re.findall(r"①(\d+) 个 CPU 示例", text)] == [counts["examples"]]
+    source = PROMO_PY.read_text(encoding="utf-8")
+    durations = [float(d) for d in re.findall(r'@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', source)]
+    assert [int(n) for n in re.findall(r"含 (\d+) 秒宣传片", text)] == [int(sum(durations))]
+
+    # ⑤ 两处模型清单的条目数必须等于注册表(第 21 行那处曾漏掉 Qwen-Image-Edit 2.x)
+    lists = re.findall(r"Klein、([^|）]+)", text)
+    assert len(lists) == 2, f"README 的模型清单应为 2 处,实得 {len(lists)}"
+    for rest in lists:
+        entries = ["Klein", *[n.strip() for n in rest.split("、") if n.strip()]]
+        assert len(entries) == counts["models"], (
+            f"README 模型清单 {entries} 共 {len(entries)} 个,注册表 {counts['models']} 个"
+        )
+
+    # ⑥ 测试数:按下限(与站点/宣传片同一策略)
+    floor_claims += [int(n) for n in re.findall(r"(\d+) 数值不变量测试", text)]
+    floor_claims += [int(n) for n in re.findall(r"(\d+)\+ 单元与集成测试", text)]
+    assert floor_claims, "找不到 README 里的测试数声明"
+    collected = _collected_tests()
+    assert all(claim <= collected for claim in floor_claims), (
+        f"README 宣称测试数 {floor_claims},实际只收集到 {collected}"
+    )
+
+
+def test_unverified_adapter_line_claim_is_pinned() -> None:
+    """对外文案的"N 行适配器"没有代码对应物,只钉住它的数值,让改动显式经过本测试。
+
+    要么主线给它一个可复现的度量(例如"最小的具体适配器类 = 17 行"),要么删掉这个数字。
+    见 UNVERIFIED_ADAPTER_LINE_CLAIM 处的实测值。
+    """
+    occurrences: list[int] = []
+    for path in (README, INDEX_HTML, PROMO_PY):
+        text = path.read_text(encoding="utf-8")
+        occurrences += [
+            int(n)
+            for n in re.findall(r"(\d+)\s*行\s*(?:`BaseModelAdapter`|适配器|接入新模型)", text)
+        ]
+    assert occurrences, "找不到适配器行数 claim"
+    assert set(occurrences) == {UNVERIFIED_ADAPTER_LINE_CLAIM}, (
+        f"适配器行数 claim 出现在 {occurrences};改它之前请先给它一个可复现的度量"
     )
