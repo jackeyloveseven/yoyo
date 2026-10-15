@@ -52,8 +52,8 @@ valid only within the same v2 lineage and topology contract.
 
 ```bash
 mmtrain checkpoint import-policy \
-  --source /path/to/v1-checkpoint.pt \
-  --model firered
+  --source /path/to/v1-checkpoint.pt --source-sha256 <sha256> \
+  --source-release training-code-v1.9.0 --model firered --output /path/to/output/
 ```
 
 The import creates a policy-only lineage receipt. It never imports v1 optimizer,

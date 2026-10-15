@@ -6,7 +6,6 @@ Run from the repository root:
 PYTHONPATH=training_code/src python3 training_code/check_v2_quality.py
 PYTHONPATH=training_code/src:training_code python3 -m pytest -q training_code/tests/v2
 python3 training_code/check_docs.py --root training_code
-python3 scripts/check_repository_hygiene.py --root .
 ```
 
 The v2 gate enforces:
@@ -15,7 +14,7 @@ The v2 gate enforces:
 - functions at most 120 lines, eight parameters, and cyclomatic complexity 15;
 - no repeated normalized 50-token production window;
 - one argparse boundary, no `sys.path` mutation, home path, SSH/process-control import,
-  broad fallback, or production dependency cycle;
+  broad fallback, production dependency cycle, or forbidden directory (`scripts/` included);
 - active non-test Python at most 103,748 lines, with a non-increasing budget.
 
 Adding a recipe changes data. Adding a model, objective, dataset, or reward changes
