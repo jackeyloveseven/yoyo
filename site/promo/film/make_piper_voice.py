@@ -5,12 +5,18 @@
 逐字时刻(按字数比例分配到真实音频时长上)。画面只读 timeline,换配音不用改 film.js。
 
     python3 site/promo/film/make_piper_voice.py [--model /path/to/model.onnx]
+
+模型下载(约 60MB):
+
+    curl -L -O https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx
+    curl -L -O https://huggingface.co/rhasspy/piper-voices/resolve/main/zh/zh_CN/huayan/medium/zh_CN-huayan-medium.onnx.json
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import wave
 from pathlib import Path
 
@@ -18,7 +24,8 @@ from piper import PiperVoice
 from piper.config import SynthesisConfig
 
 HERE = Path(__file__).resolve().parent
-DEFAULT_MODEL = Path("/tmp/piper/zh_CN-huayan-medium.onnx")
+# 模型不随仓库分发;下载地址见 docstring,或用 PIPER_MODEL 指向本地文件
+DEFAULT_MODEL = Path(os.environ.get("PIPER_MODEL", "/tmp/piper/zh_CN-huayan-medium.onnx"))
 
 
 def char_cost(ch: str) -> float:
