@@ -88,7 +88,7 @@ reward,然后告诉你该监控什么指标、画什么图、下一步做什么�
 
 | 阶段 | 做什么 | 验收标准 |
 | :--- | :--- | :--- |
-| 1. 跑通 | `pytest tests/v2 -q` 全绿;跑 `examples/train_sft_edit.py` 看 loss 下降 | 97 测试通过 |
+| 1. 跑通 | `pytest tests/v2 -q` 全绿;跑 `examples/train_sft_edit.py` 看 loss 下降 | 104 测试通过 |
 | 2. 读懂约定 | 读 `nn/flow.py` 的加噪/求解;用 `mmtrain compose` 生成两份蓝图 | 能讲清 `x_t`/`v`/EMA |
 | 3. 读懂一个方法 | 读 LCM 契约卡 + 实现 + 示例 + 测试 | 能说清它和 DMD 的区别 |
 | 4. 改一个数值 | 改示例里 `huber_c`/`num_distill_steps`,重跑,解释指标怎么变 | 实验卡上的指标解释对了 |

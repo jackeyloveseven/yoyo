@@ -1,13 +1,17 @@
 """文档/站点里写的 CLI 命令行,必须能被真实 argparse 接受(不执行)。
 
 文档命令腐烂(写出的命令不存在、参数拼错、子命令已被重命名)是最常见的文档病,
-且 `check_docs.py` 只查 markdown 链接、不查反引号里的 shell。本测试把文档里出现的
-每一条 `mmtrain ...` 命令行抽出来,用真实 CLI 解析器验证其参数存在——文档与 CLI
-同源,是"结果可核对"红线的一部分。
+且 `check_docs.py` 只查 markdown 链接、不查反引号里的 shell。本测试把文档与宣传片
+脚本里出现的 `mmtrain ...` 命令行抽出来,用真实 CLI 解析器验证其参数存在——文档与
+CLI 同源,是"结果可核对"红线的一部分。覆盖范围是行首命令(含站点 `<code>` 行)与
+脚本字符串字面量;`SHA=$(mmtrain ...)` 这类 shell 内联写法暂不在内。
 
-策略:把整条命令喂给真实 CLI 解析器并捕获 ``SystemExit``——非法参数/子命令以非零
-码退出,合法命令以 0 退出(argparse 在分发前先校验参数,不会执行真实命令)。**不能
-追加 ``--help`` 短路**:argparse 遇到 ``--help`` 立刻退出,看不到后面的未知参数。
+策略:把整条命令喂给 ``_parser().parse_args``——**只解析、不分发**。早先版本调用
+``main(argv)``,argparse 校验完会继续 dispatch 真实业务代码(``registry list`` 真跑、
+``phase run`` 在路径存在时真启动),文档一旦写成真实路径就会在测试里执行训练;
+``--output`` 还需重定向以免落盘。改为直接调用解析器后,写盘、stdin、dispatch 三个
+副作用同时消失。**不能追加 ``--help`` 短路**:argparse 遇到 ``--help`` 立刻退出,
+看不到后面的未知参数。
 """
 
 from __future__ import annotations
@@ -16,11 +20,9 @@ import contextlib
 import io
 import re
 import shlex
-import sys
-import tempfile
 from pathlib import Path
 
-from mmtrainer.cli import main
+from mmtrainer.cli import _parser
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -31,6 +33,9 @@ _DOC_SURFACES: tuple[Path, ...] = (
     ROOT / "site" / "index.html",
     ROOT / "examples" / "README.md",
 )
+
+# 宣传片脚本里的演示命令同样是上镜材料:字符串字面量里的 mmtrain 命令也要能解析。
+_SCRIPT_COMMAND_SOURCES: tuple[Path, ...] = (ROOT / "site" / "promo" / "render_promo.py",)
 
 
 def _documented_commands() -> list[tuple[str, str]]:
@@ -54,69 +59,36 @@ def _documented_commands() -> list[tuple[str, str]]:
                 continue
             stripped = re.sub(r"\s+#.*$", "", stripped).strip()
             commands.append((path.relative_to(ROOT).as_posix(), stripped))
+    for path in _SCRIPT_COMMAND_SOURCES:
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r'"(mmtrain [^"]+)"', text):
+            command = re.sub(r"\s+#.*$", "", match.group(1)).strip()
+            if not command.isascii():  # 标题文案(含中文)不是命令
+                continue
+            commands.append((path.relative_to(ROOT).as_posix(), command))
     return commands
-
-
-_REDIRECT_DIR = tempfile.TemporaryDirectory(prefix="cli-doc-")
-
-
-def _redirect_outputs(argv: list[str]) -> list[str]:
-    """把 ``--output``/``-o`` 的目标改到共享临时目录,保住参数结构但消除落盘副作用。
-
-    复用一个 ``TemporaryDirectory``(进程退出自动清理),而不是每个 --output 新建
-    mkdtemp——后者会在 /tmp 累积目录,CI 上越攒越多。
-    """
-    redirected: list[str] = []
-    skip_next = False
-    for i, token in enumerate(argv):
-        if skip_next:
-            skip_next = False
-            continue
-        if token in ("--output", "-o") and i + 1 < len(argv):
-            suffix = Path(argv[i + 1]).suffix or ".out"
-            redirected += [token, str(Path(_REDIRECT_DIR.name) / f"out{i}{suffix}")]
-            skip_next = True
-        else:
-            redirected.append(token)
-    return redirected
 
 
 def _parses(command: str) -> tuple[bool, str]:
     """命令(不含 'mmtrain' 前缀)能否被 argparse 接受。返回 (是否合法, 错误信息)。
 
-    只关心**参数层面**的合法性(argparse 报错 = exit 2 或 stderr 含 "error"),
-    不管业务逻辑——文档里大量命令指向占位路径(``/path/to/...``、
-    ``training_code/recipes/...``),文件不存在是运行时的事,不该让这条测试红。
-    给 ``--help`` 短路不行(argparse 遇 ``--help`` 立刻退出,看不到后面的未知参数);
-    裸交互命令(``mmtrain compose``)需要 stdin,喂 EOF 让其以 SystemExit 退出。
+    只做解析、不分发:``parse_args`` 合法即返回 Namespace,非法才抛 ``SystemExit``
+    (退出码 2,usage 写 stderr)。因此不存在"文档写对了路径就真跑训练"的风险,
+    也不必再重定向 ``--output`` 或伪造 stdin。
     """
     try:
         argv = shlex.split(command)[1:]
     except ValueError as exc:
         return False, f"无法 shlex: {exc}"
-    # 副作用隔离:把 --output <path> 重定向到临时目录,避免 compose --output blueprint.md
-    # 这类合法 quickstart 命令在仓库根落盘产物(曾因此让 check_docs 把产物算进预算)。
-    argv = _redirect_outputs(argv)
     stderr = io.StringIO()
-    exit_code: int | None = None
-    old_stdin = sys.stdin
-    sys.stdin = io.StringIO("")  # 裸交互命令读到 EOF 即可退出
-    try:
-        with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
-            try:
-                main(argv)
-            except SystemExit as exc:
-                exit_code = exc.code if isinstance(exc.code, int) else None
-            except (OSError, FileNotFoundError):
-                # 参数解析已通过,业务代码在打开文件——占位路径,视为参数层 OK
+    with contextlib.redirect_stderr(stderr):
+        try:
+            _parser().parse_args(argv)
+        except SystemExit as exc:
+            if exc.code in (0, None):
                 return True, ""
-            except EOFError:
-                return True, ""
-    finally:
-        sys.stdin = old_stdin
-    errors = [ln for ln in stderr.getvalue().splitlines() if "error" in ln.lower()]
-    if exit_code not in (0, None) or errors:
-        return False, (errors[-1].strip() if errors else f"exit={exit_code}")
+            message = [ln for ln in stderr.getvalue().splitlines() if "error" in ln.lower()]
+            return False, (message[-1].strip() if message else f"exit={exc.code}")
     return True, ""
 
 

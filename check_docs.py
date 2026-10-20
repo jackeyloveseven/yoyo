@@ -21,9 +21,14 @@ EXCLUDED_DIRECTORY_NAMES = frozenset(
         "__pycache__",
         "build",
         "dist",
+        "htmlcov",
+        "logs",
         "node_modules",
+        "output",
+        "outputs",
         "source_snapshots",
         "third_party",
+        "venv",
     }
 )
 IMPORTED_SOURCE_ROOTS = frozenset({"gemma4_vlm", "krea2_edit_runtime", "yuzihao_diffsynth"})

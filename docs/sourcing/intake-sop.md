@@ -5,7 +5,7 @@
 
 ## 总原则:吸收想法,重写实现
 
-上游实现通常缠在自己的 trainer 里(例:AI-Toolkit 的 D-OPSD 写在 129KB 的
+上游实现通常缠在自己的 trainer 里(例:AI-Toolkit 的 D-OPSD 写在它自己的
 `SDTrainer.py` 里)。我们**不 vendor 这些代码**:提取数学、超参和实现技巧,用 YoYo
 的零件风格重写成独立函数(参考范式:SimpleTuner 把"新训练方法"收敛为`一个新
 loss/调度模块 + 一组单测 + 一页说明`,而非改 Trainer 主干),使其通过全部架构门。

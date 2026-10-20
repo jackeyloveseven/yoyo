@@ -1,7 +1,7 @@
 /* YoYo 注册表离线快照 — 手写维护；真值来自 build_builtin_registries()，由测试强制一致 */
 window.YOYO_REGISTRY = {
  "source": "真值来源: mmtrainer.registry.build_builtin_registries()（本文件是手写快照,仓库里没有生成器）",
- "note": "离线内联快照；由 tests/v2/test_site_display_sync.py 强制与 build_builtin_registries() 一致（同文件还钉死 index.html 的手写矩阵与全部对外数字）。firered 按 commit da715d1 的营销红线不出现在展示面（与宣传片'FireRed 不上镜'同源），reward 'none' 为空占位不展示。",
+ "note": "离线内联快照；由 tests/v2/test_site_display_sync.py 强制与 build_builtin_registries() 一致（同文件还钉死 index.html 的手写矩阵与注册表派生的计数）。name/desc/family 是编辑性文案，注册表里没有对应来源，不在断言范围。firered 按 commit da715d1 的营销红线不出现在展示面（与宣传片'FireRed 不上镜'同源），reward 'none' 为空占位不展示。",
  "models": [
   {
    "id": "hidream",
@@ -243,38 +243,5 @@ window.YOYO_REGISTRY = {
   "pickscore",
   "professional_ocr",
   "rational_rewards"
- ],
- "reward_metrics": {
-  "rational_rewards": [
-   "Instruction_Following(0-1)",
-   "Consistency(0-1)",
-   "Visual_Quality(0-1)",
-   "overall(加权综合,0-1)"
-  ],
-  "hpsv3pp": [
-   "hps 美学分(HPSv3++ 原始分)"
-  ],
-  "pickscore": [
-   "pickscore 偏好分(对齐人类偏好的概率)"
-  ],
-  "edit_r1_mllm": [
-   "Instruction_Following(1-5 → 0-1)",
-   "Consistency(1-5 → 0-1)",
-   "Visual_Quality(1-5 → 0-1)",
-   "overall(加权综合)"
-  ],
-  "professional_ocr": [
-   "OCR 准确率(目标文本匹配度)"
-  ],
-  "identity": [
-   "cosine 身份相似度(ArcFace 5 点对齐,1 - cosine_identity_loss)"
-  ]
- },
- "next_steps": [
-  "1. CPU preflight:`mmtrain phase run --phase preflight` 验证组件可构造、契约成立。",
-  "2. GPU no-update:跑一次前向,确认无参数更新下数值有限、显存可控。",
-  "3. one optimizer update:做一次完整更新,确认 loss 有限、梯度非 nan。",
-  "4. checkpoint readback:写出再读回 checkpoint,核对 SHA-256 与参数一致。",
-  "5. 冻结评估 + 质量 receipt:固定权重评估,登记 receipt 后才可 launch_enabled=true。"
  ]
 };

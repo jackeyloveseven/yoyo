@@ -108,6 +108,32 @@ def test_video_and_poster_artifacts_exist() -> None:
         assert path.stat().st_size > 10_000, f"{name} suspiciously small"
 
 
+def _mp4_duration_seconds(path: Path) -> float:
+    """从 MP4 的 mvhd box 读时长(纯字节解析,不依赖 ffprobe)。"""
+    blob = path.read_bytes()
+    idx = blob.find(b"mvhd")
+    assert idx > 0, "promo.mp4 has no mvhd box"
+    assert blob[idx + 4] == 0, "mvhd version 1 unsupported"
+    timescale = int.from_bytes(blob[idx + 16 : idx + 20], "big")
+    duration = int.from_bytes(blob[idx + 20 : idx + 24], "big")
+    return duration / timescale
+
+
+def test_rendered_video_duration_matches_scene_table() -> None:
+    """入库的 MP4 时长必须等于分镜表总和——防止"改了分镜表但忘记重渲"。
+
+    源码侧的时长断言只能证明表被正确读取,证明不了线上这支片子真的按新表渲染过。
+    成品是 Pages 直接提供的文件,它和源码分镜表脱节时,页面文案会与画面矛盾。
+    """
+    mod = _renderer_module()
+    table = mod.scene_table()
+    expected = sum(end - start for _, start, end, _ in table) / mod.FPS
+    actual = _mp4_duration_seconds(PROMO_DIR.parent / "assets" / "promo.mp4")
+    assert abs(actual - expected) < 1.0, (
+        f"promo.mp4 时长 {actual:.1f}s != 分镜表 {expected:.1f}s——分镜改了但没重渲?"
+    )
+
+
 def _renderer_module():
     """导入渲染器模块(模块级只有常量与懒加载缓存,import 安全)。"""
     import importlib.util

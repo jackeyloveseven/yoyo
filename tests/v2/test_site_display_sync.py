@@ -13,7 +13,7 @@
 营销红线:firered 不上面向公众的展示面(commit da715d1,与宣传片"FireRed 不上镜"
 同源);reward ``none`` 是空占位不展示。这两个排除是**决策**不是漂移。
 
-断言策略:每个数字按其代码来源精确断言,唯一例外是**测试数**——站点、README 与
+断言策略:注册表能派生的每个数字按其代码来源精确断言,唯一例外是**测试数**——站点、README 与
 宣传片各有一份,而其中一份被烤进已渲染的 ``promo.mp4``,精确断言会逼着每加一个
 测试就重渲整支视频。故测试数按下限断言:堵住虚报,又不因新增测试而假红。
 """
@@ -74,6 +74,18 @@ VIDEO_TILES: dict[str, str | None] = {
 
 CN_DIGITS = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
 
+# README 模型清单用的展示名 → 注册表 plugin_id。对外名同样是契约:改名必须同步
+# 这里,否则"两个条目"都叫 Klein 的清单也能骗过条目数断言。
+README_MODEL_NAMES = {
+    "firered": "FireRed",
+    "hidream": "HiDream",
+    "klein": "Klein",
+    "krea2": "Krea2",
+    "qwen_image": "Qwen-Image",
+    "qwen_image_edit_2x": "Qwen-Image-Edit 2.x",
+    "sensenova": "SenseNova",
+}
+
 
 def _cn_int(text: str) -> int:
     """解析 1..99 的简单中文数字(十 / 十五 / 二十)。"""
@@ -120,15 +132,27 @@ def _collected_tests() -> int:
         text=True,
         check=False,
     )
+    # 收集阶段有 import/语法错误时 pytest 仍会打印 "N tests collected, 1 error",
+    # 只数 N 会把"半数用例根本收集不到"当成正常——必须同时检查退出码。
+    assert proc.returncode == 0, (
+        f"pytest 收集失败(exit={proc.returncode}):\n{proc.stdout[-400:]}\n{proc.stderr[-400:]}"
+    )
     match = re.search(r"(\d+) tests? collected", proc.stdout)
     assert match, f"解析不了 pytest 收集结果:\n{proc.stdout[-400:]}\n{proc.stderr[-400:]}"
     return int(match.group(1))
 
 
 def _promo_scene_durations() -> list[float]:
-    """render_promo.py 分镜表的时长序列(站点/宣传片/README 三处共用)。"""
+    """render_promo.py 分镜表的时长序列(站点/宣传片/README 三处共用)。
+
+    ``^`` 锚定行首:注释掉的 ``# @scene("cta", 5.0)`` 不得计入,否则分镜少一个而
+    时长断言仍是旧的。
+    """
     return [
-        float(d) for d in re.findall(r'@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', _PROMO_SOURCE)
+        float(d)
+        for d in re.findall(
+            r'^@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', _PROMO_SOURCE, re.MULTILINE
+        )
     ]
 
 
@@ -165,6 +189,7 @@ def _matrix_cells(html: str) -> tuple[list[str], dict[str, dict[str, bool]], dic
     assert models, "矩阵表头没有解析出模型列"
     rows: dict[str, dict[str, bool]] = {}
     reward_required: dict[str, bool] = {}
+    seen: list[str] = []
     for row in re.findall(r"<tr[^>]*>(.*?)</tr>", body, re.S):
         objective_id = re.search(r'<span class="oid mono">([^<]+)</span>', row).group(1)
         req_cell = re.search(r'<td class="col-req">(.*?)</td>', row, re.S).group(1)
@@ -172,8 +197,12 @@ def _matrix_cells(html: str) -> tuple[list[str], dict[str, dict[str, bool]], dic
         assert len(marks) == len(models), (
             f"{objective_id}: 矩阵格数 {len(marks)} != 列数 {len(models)}"
         )
+        seen.append(objective_id)
         rows[objective_id] = {m: mark == "mk-yes" for m, mark in zip(models, marks, strict=True)}
         reward_required[objective_id] = 'class="req"' in req_cell
+    # 重复行的后一份会覆盖前一份字典,页面却两行都渲染——第一份写错也查不出来。
+    duplicates = sorted({x for x in seen if seen.count(x) > 1})
+    assert len(seen) == len(set(seen)), f"矩阵有重复目标行: {duplicates}"
     return models, rows, reward_required
 
 
@@ -285,13 +314,14 @@ def test_site_display_numbers_trace_to_code() -> None:
             f"meta 写 {actual},代码是 {(counts['models'], counts['objectives'], counts['rewards'])}"
         )
 
-    # ③ 分层图里的"N 个在此展示"(模型层、奖励层)
-    shown = [
-        int(n) for n in re.findall(r'<span class="layer-count mono">(\d+) 个在此展示</span>', html)
+    # ③ 分层图三层的计数逐层对齐(模型/奖励层是"N 个在此展示",目标层是裸数字)
+    layers = re.findall(r'<span class="layer-count mono">([^<]+)</span>', html)
+    expected_layers = [
+        f"{counts['models_shown']} 个在此展示",
+        f"{counts['rewards_shown']} 个在此展示",
+        str(counts["objectives"]),
     ]
-    assert shown == [counts["models_shown"], counts["rewards_shown"]], (
-        f"分层图写 {shown},代码是 {[counts['models_shown'], counts['rewards_shown']]}"
-    )
+    assert layers == expected_layers, f"分层图写 {layers},代码是 {expected_layers}"
 
     # ④ 对比表里的目标/奖励数
     pairs = re.findall(r"一等公民：(\d+) 个目标 \+ (\d+) 个奖励后端", html)
@@ -307,13 +337,17 @@ def test_site_display_numbers_trace_to_code() -> None:
     # ⑥ 上游雷达项目数
     _assert_count(r"上游雷达监测 (\d+) 个活跃项目", html, counts["radar"], "站点雷达项目数")
 
-    # ⑦ 视频时长与分镜数(由 render_promo.py 的分镜表定义)
+    # ⑦ 视频时长与分镜数(由 render_promo.py 的分镜表定义);两处副本都要对齐
     durations = _promo_scene_durations()
     _assert_count(r"(\d+) 秒看完", html, int(sum(durations)), "站点宣传片时长")
+    _assert_count(r"(\d+) 秒 ·", html, int(sum(durations)), "站点视频图注时长")
     cn_scenes = re.findall(r"([一二三四五六七八九十]+)个分镜", html)
     assert [_cn_int(t) for t in cn_scenes] == [len(durations)], (
         f"站点分镜数 {cn_scenes} != 分镜表 {len(durations)}"
     )
+
+    # ⑨ 质量门阈值:站点对比表里的"单文件强制 ≤N 行"必须等于 audit.py 常量
+    _assert_count(r"单文件强制 ≤(\d+) 行", html, CORE_FILE_LINES, "站点文件行数门")
 
     # ⑧ 测试数:按下限断言(站点与宣传片各一份,宣传片那份烤进了 MP4)
     floor_claims += [int(n) for n in re.findall(r"(\d+)\s*个?数值不变量测试?", html)]
@@ -328,7 +362,8 @@ def test_video_display_numbers_trace_to_code() -> None:
 
     block = re.search(r"tiles = \[(.*?)\n    \]", source, re.S)
     assert block, "render_promo.py 的 numbers 分镜丢了 tiles 列表"
-    tiles = re.findall(r'\("(\d+)", "([^"]+)"\)', block.group(1))
+    # 行首锚定:被注释掉的瓷砖不得计入(否则删一个分镜/瓷砖而文案不动,测试仍绿)
+    tiles = re.findall(r'^\s*\("(\d+)", "([^"]+)"\)', block.group(1), re.MULTILINE)
     assert len(tiles) == len(VIDEO_TILES), (
         f"numbers 瓷砖应为 {len(VIDEO_TILES)} 个,实得 {len(tiles)}"
     )
@@ -346,6 +381,8 @@ def test_video_display_numbers_trace_to_code() -> None:
     # 其余上镜数字
     _assert_count(r"(\d+) 个自包含示例", source, counts["examples"], "宣传片示例数")
     _assert_count(r"(\d+) 个活跃项目", source, counts["radar"], "宣传片雷达项目数")
+    _assert_count(r"单文件 ≤(\d+) 行", source, CORE_FILE_LINES, "宣传片文件行数门")
+    _assert_count(r"零 (\d+)-token 重复", source, DUPLICATE_TOKEN_WINDOW, "宣传片重复窗口")
     floor_claims += [int(n) for n in re.findall(r"(\d+) 个数值不变量", source)]
     _assert_test_floor(floor_claims, "宣传片")
 
@@ -383,13 +420,15 @@ def test_readme_display_numbers_trace_to_code() -> None:
     durations = _promo_scene_durations()
     _assert_count(r"含 (\d+) 秒宣传片", text, int(sum(durations)), "README 宣传片时长")
 
-    # ⑤ 两处模型清单的条目数必须等于注册表(第 21 行那处曾漏掉 Qwen-Image-Edit 2.x)
+    # ⑤ 两处模型清单必须与注册表**逐个名字**一致(只对条目数会让重复/改名蒙混过关)
     lists = re.findall(r"Klein、([^|）]+)", text)
     assert len(lists) == 2, f"README 的模型清单应为 2 处,实得 {len(lists)}"
+    live_model_entries = build_builtin_registries().models.entries()
+    expected_names = {README_MODEL_NAMES[e.plugin_id] for e in live_model_entries}
     for rest in lists:
         entries = ["Klein", *[n.strip() for n in rest.split("、") if n.strip()]]
-        assert len(entries) == counts["models"], (
-            f"README 模型清单 {entries} 共 {len(entries)} 个,注册表 {counts['models']} 个"
+        assert set(entries) == expected_names, (
+            f"README 模型清单 {sorted(entries)} != 注册表 {sorted(expected_names)}"
         )
 
     # ⑥ 测试数:按下限(与站点/宣传片同一策略)

@@ -74,7 +74,7 @@
     <div class="stat" role="listitem"><span class="num">7</span><span class="lbl">奖励后端</span></div>
     <div class="stat" role="listitem"><span class="num">6</span><span class="lbl">模型适配器（本页展示）</span></div>
     <div class="stat" role="listitem"><span class="num">8</span><span class="lbl">CPU 端到端示例</span></div>
-    <div class="stat" role="listitem"><span class="num">97</span><span class="lbl">测试通过</span></div>
+    <div class="stat" role="listitem"><span class="num">104</span><span class="lbl">测试通过</span></div>
     <div class="stat" role="listitem"><span class="num">6</span><span class="lbl">架构决策 ADR</span></div>
   </div>
 </header>
@@ -93,7 +93,7 @@
         <h3 class="duo-h3 bad">脚本合集</h3>
         <ul class="ticks">
           <li data-x="1">加噪公式每个 trainer 一份，符号不统一</li>
-          <li data-x="1">新算法 = 复制 129KB 的 trainer 主干</li>
+          <li data-x="1">新算法 = 复制整套 trainer 主干</li>
           <li data-x="1">换模型要重读一半训练逻辑</li>
           <li data-x="1">测试只覆盖"能跑"，不覆盖静默 bug</li>
         </ul>
@@ -104,7 +104,7 @@
           <li>加噪 <code>x_t=(1−t)x₀+t·noise</code>、Euler/DPM2 写死在基座层，全仓库共享</li>
           <li>新算法 = 一个独立 loss 函数 + 注册一行</li>
           <li>新模型 = 一个 <code>BaseModelAdapter</code>，立刻用全部目标</li>
-          <li>97 个数值不变量测试守 detach 边界、零方差组、FP32 路径</li>
+          <li>104 个数值不变量测试守 detach 边界、零方差组、FP32 路径</li>
         </ul>
       </div>
     </div>
@@ -116,7 +116,7 @@
     <div class="sec-head">
       <p class="sec-eyebrow">交互演示</p>
       <h2>选一个模型，看它能跑什么</h2>
-      <p>这就是 <code>mmtrain compose</code> 的兼容性判定逻辑：每个目标声明它需要哪些模型能力，模型的已注册能力是这些能力的超集时才算可跑。数据由注册表离线内联，与 <code>docs/models/README.md</code> 的矩阵同源，由测试强制一致。</p>
+      <p>这就是 <code>mmtrain compose</code> 的兼容性判定逻辑：每个目标声明它需要哪些模型能力，模型的已注册能力是这些能力的超集时才算可跑。数据由注册表离线内联，与 <code>docs/models/README.md</code> 的矩阵同源于注册表，由测试分别对齐（本页按营销红线不展示 firered）。</p>
     </div>
 
     <div class="explorer" id="explorer-app">
@@ -382,7 +382,7 @@
     <div class="sec-head">
       <p class="sec-eyebrow">上手</p>
       <h2>五分钟跑通，纯 CPU 无需权重</h2>
-      <p>示例全部由单测守护，README 里的每个数字与代码同源，由文档同步测试强制一致。</p>
+      <p>示例全部由单测守护，README 里由注册表派生的数字与代码同源，由测试强制一致。</p>
     </div>
     <div class="start-grid">
       <ol class="steps">
@@ -394,9 +394,10 @@
       <div class="code-block">
         <pre><code><span class="c">$</span> git clone https://github.com/jackeyloveseven/yoyo
 <span class="c">$</span> cd yoyo &amp;&amp; pip install -e .
-<span class="c">$</span> pytest tests/v2 -q          <span class="c"># 97 passed</span>
+<span class="c">$</span> pytest tests/v2 -q          <span class="c"># 104 passed</span>
+<span class="c">$</span> mkdir -p output
 <span class="c">$</span> mmtrain compose --model qwen_image_edit_2x \
-    --objective image_dpo --reward none --output blueprint.md</code></pre>
+    --objective image_dpo --reward none --output output/blueprint.md</code></pre>
         <p class="code-note">蓝图会列出该目标应监控的全部指标、该做的图与下一步晋级动作——可直接贴进实验记录。</p>
       </div>
     </div>
@@ -450,11 +451,11 @@
         </thead>
         <tbody>
           <tr><th scope="row">组织方式</th><td>配置驱动：往现成 trainer 框架里填参数</td><td class="col-yoyo">零件驱动：注册表 + 适配器 + 纯函数，自己拼装</td></tr>
-          <tr><th scope="row">核心文件</th><td>训练进程是超大类（SDTrainer.py 约 129KB）</td><td class="col-yoyo">零件是小函数，单文件强制 ≤800 行（质量门拦截）</td></tr>
+          <tr><th scope="row">核心文件</th><td>训练进程是一个超大类（SDTrainer.py）</td><td class="col-yoyo">零件是小函数，单文件强制 ≤800 行（质量门拦截）</td></tr>
           <tr><th scope="row">加新算法</th><td>在 trainer 的扩展点内开发</td><td class="col-yoyo">写一个独立 loss 函数丢进 <code>algorithms/</code>，注册一行</td></tr>
           <tr><th scope="row">加新模型</th><td>用它的 model registry 接入</td><td class="col-yoyo">写一个 <code>BaseModelAdapter</code>，立刻用全部算法</td></tr>
           <tr><th scope="row">RL / DPO</th><td>main 分支未见内置实现</td><td class="col-yoyo">一等公民：10 个目标 + 7 个奖励后端</td></tr>
-          <tr><th scope="row">质量保障</th><td>社区驱动、迭代快，CI 不跑测试</td><td class="col-yoyo">每次提交强制过 AST 门 + 97 数值不变量测试 + 文档门</td></tr>
+          <tr><th scope="row">质量保障</th><td>社区驱动、迭代快，CI 不跑测试</td><td class="col-yoyo">每次提交强制过 AST 门 + 104 数值不变量测试 + 文档门</td></tr>
         </tbody>
       </table>
     </div>

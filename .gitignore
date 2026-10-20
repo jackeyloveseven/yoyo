@@ -56,9 +56,6 @@ outputs/
 wandb/
 logs/
 *.log
-# mmtrain compose --output 落盘的蓝图(quickstart 命令的真实产物,非仓库资产)
-blueprint.md
-
 # OS & editor files
 .DS_Store
 Thumbs.db

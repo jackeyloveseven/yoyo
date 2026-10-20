@@ -11,7 +11,7 @@
 → quickstart(CPU 跑通) → cta。配乐为程序化合成(见 build_audio)。
 
 营销红线:FireRed 不出现;Qwen 主打 Edit 2.x;AWM/RAM 不宣传;
-"源码可用 ≠ GPU 就绪" 的诚实边界必须可见。所有数字与主仓库注册表同源。
+"源码可用 ≠ GPU 就绪" 的诚实边界必须可见。注册表能派生的数字与主仓库同源。
 """
 
 from __future__ import annotations
@@ -652,7 +652,7 @@ def sc_numbers(img, draw, t01: float) -> None:
         ("10", "训练目标"),
         ("7", "奖励后端"),
         ("8", "CPU 可跑示例"),
-        ("97", "测试全绿"),
+        ("104", "测试全绿"),
         ("6", "篇 ADR"),
     ]
     tw_, th_ = 540, 250
@@ -704,7 +704,7 @@ def sc_gates(img, draw, t01: float) -> None:
         ("check_v2_quality", "AST 门:行数/复杂度/去重"),
         ("check_structure", "依赖方向与组件存在"),
         ("check_docs", "断链/重复/文档预算"),
-        ("pytest tests/v2", "97 个数值不变量"),
+        ("pytest tests/v2", "104 个数值不变量"),
     ]
     bw, bh = 1000, 88
     y0 = 220
