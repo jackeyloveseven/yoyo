@@ -60,3 +60,27 @@ def test_topology_and_qualification_fail_closed() -> None:
     payload["qualification"]["launch_enabled"] = True
     with pytest.raises(ValidationError, match="qualification receipt"):
         RunSpec.model_validate(payload)
+
+
+def test_ids_are_anchor_matched() -> None:
+    """ID 必须全串匹配:re.search 语义下 "../../etc" 会作为子串溜过去。"""
+    import copy
+
+    payload = run_spec_payload()
+    for bad in ("../../etc", "foo/bar", "!!!evil!!!", "a" * 129):
+        candidate = copy.deepcopy(payload)
+        candidate["run_id"] = bad
+        with pytest.raises(ValidationError):
+            RunSpec.model_validate(candidate)
+
+
+def test_config_values_cannot_smuggle_locations() -> None:
+    """只查 key 名不够:data_jsonl / note 这类名字照样能塞绝对路径或 URI。"""
+    import copy
+
+    payload = run_spec_payload()
+    for value in ("/etc/passwd", "../secret", "s3://bucket/x", "~/data.jsonl"):
+        candidate = copy.deepcopy(payload)
+        candidate["dataset"] = {"plugin_id": "manifest", "config": {"data_jsonl": value}}
+        with pytest.raises(ValidationError, match="not a location"):
+            RunSpec.model_validate(candidate)

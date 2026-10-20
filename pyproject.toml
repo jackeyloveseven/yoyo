@@ -48,6 +48,11 @@ promo = [
   "numpy",
   "Pillow>=10.0",
 ]
+# 离线配音:site/promo/film/make_piper_voice.py 的依赖(edge-tts 不可达时的备选)。
+# 模型文件不随仓库分发,下载方式见该脚本 docstring。
+promo-offline = [
+  "piper-tts>=1.2",
+]
 
 [project.scripts]
 mmtrain = "mmtrainer.cli:main"

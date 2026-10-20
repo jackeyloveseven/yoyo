@@ -79,7 +79,7 @@ YoYo 的目标不是"另一个训练脚本合集",而是做**扩散/流匹配后
 ```bash
 git clone https://github.com/jackeyloveseven/yoyo.git
 cd yoyo
-python3 -m pip install -e ".[test,checkpoint]"
+python3 -m pip install -e ".[test,checkpoint,promo]"
 ```
 
 ### 2. 看看注册了哪些零件
@@ -205,9 +205,10 @@ vLLM / Diffusers / AI-Toolkit / Miles 等上游的优点,重写成可组合零�
 提交前在本地跑一遍所有质量门：
 
 ```bash
-PYTHONPATH=src python3 -m ruff check src/ tests/ examples/   # 代码风格
+PYTHONPATH=src python3 -m ruff check src/ tests/ examples/ site/promo/ check_v2_quality.py check_structure.py check_docs.py
+PYTHONPATH=src python3 -m ruff format --check src/ tests/ examples/ site/promo/
 PYTHONPATH=src python3 check_v2_quality.py                    # AST 架构门（行数/复杂度/去重）
 python3 check_structure.py                                    # 目录结构门
 python3 check_docs.py                                         # 文档链接/重复/行数门
-PYTHONPATH=src:. pytest tests/v2 -q                           # 50+ 单元与集成测试
+PYTHONPATH=src:. pytest tests/v2 -q                           # 单元与集成测试
 ```

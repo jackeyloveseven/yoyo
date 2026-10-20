@@ -5,7 +5,7 @@
 | Layer | Module | Composable Building Blocks |
 | :--- | :--- | :--- |
 | **Flow & NN** | [`mmtrainer.nn`](../src/mmtrainer/nn/__init__.py) | `flow_sample`, `paired_flow_samples`, `euler_flow_step`, `dpm2_flow_step`, `resolution_shifted_timesteps`, `build_lr_scheduler`, `build_accelerate_config`, `NativeLoRARouter` |
-| **Model Adapters** | [`mmtrainer.models`](../src/mmtrainer/models/catalog.py) | `BaseModelAdapter`, `KleinAdapter`, `QwenImageAdapter`, `Krea2Adapter`, `FireRedAdapter`, `SenseNovaAdapter`, `HiDreamAdapter`, `SingleStreamDiT` |
+| **Model Adapters** | [`plugins.base`](../src/mmtrainer/plugins/base.py) · [`klein`](../src/mmtrainer/models/klein.py) · [`qwen_image`](../src/mmtrainer/models/qwen_image.py) · [`krea2`](../src/mmtrainer/models/krea2.py) · [`firered`](../src/mmtrainer/models/firered.py) · [`sensenova`](../src/mmtrainer/models/sensenova.py) | `BaseModelAdapter`, `KleinAdapter`, `QwenImageAdapter`, `Krea2Adapter`, `SingleStreamDiT`, `FireRedAdapter`, `SenseNovaAdapter`, `HiDreamAdapter` |
 | **Datasets** | [`mmtrainer.datasets.manifest`](../src/mmtrainer/datasets/manifest.py) | `JsonlT2IDataset`, `JsonlEditDataset`, `JsonlEditPairDataset`, `normalized_image_transform` |
 | **SFT / DPO / Distill** | [`mmtrainer.algorithms.sft_dpo`](../src/mmtrainer/algorithms/sft_dpo/__init__.py) | `flow_sft_loss`, `flow_dpo_loss`, `flow_opd_ode_loss`, `dmd_distribution_matching_loss`, `norm_guard_loss`, `repa_cosine_alignment_loss` |
 | **Online RL** | [`mmtrainer.algorithms`](../src/mmtrainer/algorithms/catalog.py) | `diffusion_nft_loss`, `asymmetric_dpo_loss`, `ppo_clipped_surrogate`, `group_relative_advantages`, `diffusion_opsd_fitting_loss`, `flowmimic_clean_distribution_loss` |

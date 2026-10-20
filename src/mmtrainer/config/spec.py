@@ -11,8 +11,10 @@ from typing import Annotated, Literal, TypeAlias
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RUN_SPEC_SCHEMA = "mmtrainer.run-spec.v2"
-SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
-ID_PATTERN = r"[a-z0-9][a-z0-9._-]{0,127}"
+# pydantic 的 pattern= 走 re.search,不锚定就等于"包含即可";ID/SHA 必须全串匹配,
+# 否则 "../../etc"、"zzz"+64 位 SHA+"zzz" 都能通过校验。
+SHA256_PATTERN = r"^[0-9a-f]{64}$"
+ID_PATTERN = r"^[a-z0-9][a-z0-9._-]{0,127}$"
 
 JsonScalar: TypeAlias = str | int | float | bool | None
 ConfigValue: TypeAlias = JsonScalar | tuple[JsonScalar, ...]
@@ -27,7 +29,7 @@ class AssetRef(StrictModel):
     """Content identity resolved to a local path by the trusted runtime agent."""
 
     asset_id: str = Field(pattern=ID_PATTERN)
-    sha256: str = Field(pattern=r"[0-9a-f]{64}")
+    sha256: str = Field(pattern=SHA256_PATTERN)
     media_type: str = Field(default="application/octet-stream", min_length=1, max_length=127)
 
 
@@ -41,13 +43,30 @@ class ComponentSpec(StrictModel):
 
     @model_validator(mode="after")
     def validate_config_keys(self) -> ComponentSpec:
-        for key in self.config:
+        for key, value in self.config.items():
             if re.fullmatch(ID_PATTERN, key) is None:
                 raise ValueError(f"invalid component config key: {key}")
             lowered = key.lower()
             if any(token in lowered for token in ("path", "directory", "root", "url", "host")):
                 raise ValueError(f"component config must reference registered assets, not {key}")
+            # 只查 key 名不够:data_jsonl / note 这类名字照样能塞绝对路径或 URI,
+            # 运行时代码会把 config 原样展开给数据集构造函数。
+            for item in value if isinstance(value, tuple) else (value,):
+                if isinstance(item, str) and _looks_like_location(item):
+                    raise ValueError(
+                        "component config value must be a scalar parameter, not a location: "
+                        f"{key}={item!r}"
+                    )
         return self
+
+
+def _looks_like_location(value: str) -> bool:
+    """绝对路径、父目录穿越或带 scheme 的 URI——这些必须走 AssetRef,不能藏在 config。"""
+    return (
+        value.startswith(("/", "~", "\\"))
+        or ".." in Path(value).parts
+        or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", value) is not None
+    )
 
 
 class RuntimeSpec(StrictModel):

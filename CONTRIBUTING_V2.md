@@ -3,9 +3,9 @@
 Run from the repository root:
 
 ```bash
-PYTHONPATH=training_code/src python3 training_code/check_v2_quality.py
-PYTHONPATH=training_code/src:training_code python3 -m pytest -q training_code/tests/v2
-python3 training_code/check_docs.py --root training_code
+PYTHONPATH=src python3 check_v2_quality.py
+PYTHONPATH=src:. python3 -m pytest -q tests/v2
+python3 check_docs.py --root .
 ```
 
 The v2 gate enforces:

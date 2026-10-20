@@ -3,7 +3,7 @@
 ## Install and inspect
 
 ```bash
-python3 -m pip install -e 'training_code[test]'
+python3 -m pip install -e '.[test,checkpoint,promo]'
 mmtrain registry list
 ```
 
@@ -16,7 +16,7 @@ RunSpecs are immutable, reject unknown fields, and reference registered assets b
 ID and SHA-256 rather than accepting filesystem paths or service URLs.
 
 ```bash
-mmtrain plan validate --spec training_code/recipes/v2/firered_diffusionnft.json
+mmtrain plan validate --spec recipes/v2/firered_diffusionnft.json
 ```
 
 Template recipes contain placeholder asset digests and remain disabled. A runtime
