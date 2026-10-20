@@ -1,0 +1,5 @@
+{
+  "dir": ".",
+  "bed": {"file": "bed.wav", "gain": -17, "from_pre": true},
+  "events": []
+}

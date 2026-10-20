@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 PROMO_DIR = Path(__file__).resolve().parents[2] / "site" / "promo"
 RENDERER = PROMO_DIR / "render_promo.py"
+TIMELINE = PROMO_DIR / "film" / "timeline.json"
 
 
 def _renderer_source() -> str:
@@ -119,18 +121,16 @@ def _mp4_duration_seconds(path: Path) -> float:
     return duration / timescale
 
 
-def test_rendered_video_duration_matches_scene_table() -> None:
-    """入库的 MP4 时长必须等于分镜表总和——防止"改了分镜表但忘记重渲"。
+def test_rendered_video_duration_matches_timeline() -> None:
+    """入库的 MP4 时长必须等于时间线——防止"改了文案/时间线但忘记重渲"。
 
-    源码侧的时长断言只能证明表被正确读取,证明不了线上这支片子真的按新表渲染过。
-    成品是 Pages 直接提供的文件,它和源码分镜表脱节时,页面文案会与画面矛盾。
+    线上片子是 site/promo/film 的产物;成品是 Pages 直接提供的文件,它和时间线
+    脱节时,页面文案会与画面矛盾。
     """
-    mod = _renderer_module()
-    table = mod.scene_table()
-    expected = sum(end - start for _, start, end, _ in table) / mod.FPS
+    expected = float(json.loads(TIMELINE.read_text(encoding="utf-8"))["duration"])
     actual = _mp4_duration_seconds(PROMO_DIR.parent / "assets" / "promo.mp4")
     assert abs(actual - expected) < 1.0, (
-        f"promo.mp4 时长 {actual:.1f}s != 分镜表 {expected:.1f}s——分镜改了但没重渲?"
+        f"promo.mp4 时长 {actual:.1f}s != 时间线 {expected:.1f}s——改了文案但没重渲?"
     )
 
 

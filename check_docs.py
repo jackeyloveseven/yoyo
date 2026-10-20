@@ -57,11 +57,11 @@ def _is_excluded(root: Path, path: Path) -> bool:
         part.endswith(".egg-info") for part in relative.parts[:-1]
     ):
         return True
-    return (
-        len(relative.parts) > 2
-        and relative.parts[0] == "imported"
-        and relative.parts[1] in IMPORTED_SOURCE_ROOTS
-    )
+    if len(relative.parts) > 2 and relative.parts[0] == "imported":
+        if relative.parts[1] in IMPORTED_SOURCE_ROOTS:
+            return True
+    # 宣传片渲染输出(seg_*/list_*.txt)是构建产物,不是受维护的文档面
+    return relative.parts[:4] == ("site", "promo", "film", "out")
 
 
 def document_paths(root: Path) -> tuple[Path, ...]:

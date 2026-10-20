@@ -67,7 +67,7 @@ YoYo 的目标不是"另一个训练脚本合集",而是做**扩散/流匹配后
 - **论文到零件有标准路径**:上游雷达监测 8 个活跃项目 + import SOP 定义准入门槛
   与三个人工把关点,已走通 LCM 与 On-Policy Distillation 两个完整案例。
 
-项目主页(含 73 秒宣传片与交互式 compose 演示):
+项目主页(含 60 秒宣传片与交互式 compose 演示):
 [jackeyloveseven.github.io/yoyo](https://jackeyloveseven.github.io/yoyo/)
 
 ---

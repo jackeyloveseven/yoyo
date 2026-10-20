@@ -68,3 +68,9 @@ Thumbs.db
 # Promo video debug frames (final site/assets/promo.mp4 + poster ARE tracked:
 # GitHub Pages serves site/ from git, so the video must live in the repo)
 site/promo/frame_*.png
+
+# 宣传片渲染中间产物(voice 由 temp_voice.py 生成,out 是逐帧渲染输出)
+site/promo/film/voice/
+site/promo/film/out/
+site/promo/film/bed.wav
+site/promo/film/mix_master.wav

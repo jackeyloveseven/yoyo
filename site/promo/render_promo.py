@@ -313,7 +313,8 @@ def sc_hero(img, draw, t01: float) -> None:
         if kk <= 0:
             continue
         x = x0 + i * (pw + gap)
-        box = [x, y + 92, x + pw, y + 92 + ph]
+        float_off = math.sin(t01 * 7 + i * 0.8) * 3 * kk  # 入场后轻微浮动,避免定格
+        box = [x, y + 92 + float_off, x + pw, y + 92 + ph + float_off]
         panel(
             draw,
             box,
@@ -323,7 +324,7 @@ def sc_hero(img, draw, t01: float) -> None:
             width=2,
         )
         draw.text(
-            (x + pw / 2, y + 92 + ph / 2 - 2),
+            (x + pw / 2, y + 92 + ph / 2 - 2 + float_off),
             label,
             font=FONTS.cjk(30, "Bold"),
             fill=mix(PALETTE["bg"], PALETTE["fg"], kk),
@@ -334,6 +335,13 @@ def sc_hero(img, draw, t01: float) -> None:
     if k4 > 0:
         color = mix(PALETTE["bg"], PALETTE["accent"], k4)
         draw.text((W / 2, H - 88), url, font=FONTS.mono(28), fill=color, anchor="mm")
+        tw = draw.textlength(url, font=FONTS.mono(28))
+        x1 = W / 2 - tw / 2
+        draw.line(
+            [x1, H - 60, x1 + tw * k4, H - 60],
+            fill=mix(PALETTE["bg"], PALETTE["accent"], k4 * 0.7),
+            width=2,
+        )
 
 
 @scene("pain", 7.5)
@@ -378,8 +386,13 @@ def sc_pain(img, draw, t01: float) -> None:
                 continue
             by = y0 + 92 + j * 72
             base = mix(PALETTE["panel"], PALETTE["line"], 0.8)
-            col = mix(base, PALETTE["danger"], flash * 0.55)
-            panel(draw, [x + 26, by, x + bw - 26, by + 54], 10, fill=mix(PALETTE["bg"], col, kj))
+            # 越靠右的列红色越深:复制距离本身就是"债"的度量
+            copy_tint = 0.30 * (i / max(1, len(names) - 1))
+            col = mix(base, PALETTE["danger"], max(flash * 0.55, copy_tint))
+            # 第 2~4 列的块从第一列的位置横滑过来——画面直接演示"复制粘贴"
+            src_x = gap + 26 if i else x + 26
+            bx = src_x + (x + 26 - src_x) * kj
+            panel(draw, [bx, by, bx + bw - 52, by + 54], 10, fill=mix(PALETTE["bg"], col, kj))
             draw_mixed_line(
                 img,
                 draw,
@@ -387,7 +400,7 @@ def sc_pain(img, draw, t01: float) -> None:
                 block,
                 mix(PALETTE["bg"], PALETTE["muted"], kj),
                 gap=8,
-                center_x=x + bw / 2,
+                center_x=bx + (bw - 52) / 2,
             )
     caption(draw, "同一段逻辑复制了 N 份 —— 改一处,要改十处", smooth(t01 * 8 - 0.9))
 
@@ -409,7 +422,8 @@ def sc_parts(img, draw, t01: float) -> None:
         kk = stagger(t01, i, 0.07)
         if kk <= 0:
             continue
-        x = W / 2 - bw / 2 + (1 - kk) * 60
+        direction = -1 if i % 2 else 1  # 左右交替飞入,比统一上移更有"拼装"感
+        x = W / 2 - bw / 2 + (1 - kk) * 260 * direction
         y = y0 + i * (bh + 14)
         panel(
             draw,
@@ -433,6 +447,17 @@ def sc_parts(img, draw, t01: float) -> None:
             fill=mix(PALETTE["bg"], PALETTE["muted"], kk),
             anchor="lm",
         )
+    # 依赖方向:零件层从上到下单向依赖(与 ARCHITECTURE_V2 的箭头同向)
+    k_arrow = smooth(t01 * 8 - 0.5)
+    if k_arrow > 0:
+        ax = W / 2 - bw / 2 - 30
+        top = y0 + bh / 2
+        bottom = y0 + 4 * (bh + 14) + bh / 2
+        end_y = top + (bottom - top) * k_arrow
+        arrow_col = mix(PALETTE["bg"], PALETTE["accent"], k_arrow * 0.8)
+        draw.line([(ax, top), (ax, end_y)], fill=arrow_col, width=3)
+        draw.polygon([(ax - 8, end_y - 10), (ax, end_y), (ax + 8, end_y - 10)], fill=arrow_col)
+
     k_hook = smooth(t01 * 8 - 0.85)
     if k_hook > 0:
         text = "换一种训练方式?换零件,不换整套脚本。"
@@ -474,8 +499,8 @@ def sc_compose(img, draw, t01: float) -> None:
         ("下一步", "CPU preflight → GPU no-update → one-update", "accent"),
     ]
     cmd_font = FONTS.mono(27)
-    # 打字机:命令行 0.1~0.45,输出行 0.45~0.9 逐行浮现
-    typed = int(len(cmd) * smooth((t01 - 0.10) * (1 / 0.32)))
+    # 打字机:命令行 0.05~0.30,输出行 0.32~0.9 逐行浮现(前版留了 3.6s 空窗)
+    typed = int(len(cmd) * smooth((t01 - 0.05) * (1 / 0.25)))
     if typed > 0:
         draw.text(
             (x0 + 40, y0 + 78), "$ " + cmd[:typed], font=cmd_font, fill=PALETTE["fg"], anchor="lm"
@@ -485,7 +510,7 @@ def sc_compose(img, draw, t01: float) -> None:
         cursor = [x0 + 40 + wcmd + 6, y0 + 64, x0 + 40 + wcmd + 19, y0 + 92]
         draw.rectangle(cursor, fill=PALETTE["accent"])
     for i, (label, content, tone) in enumerate(out_lines):
-        ki = smooth((t01 - 0.48 - i * 0.07) * 6)
+        ki = smooth((t01 - 0.32 - i * 0.06) * 6)
         if ki <= 0:
             continue
             # pragma: no cover
@@ -503,6 +528,26 @@ def sc_compose(img, draw, t01: float) -> None:
             content,
             font=FONTS.cjk(28),
             fill=mix(PALETTE["bg"], color, ki),
+            anchor="lm",
+        )
+    # 落盘确认:命令演示要有"结果",不能停在参数列表
+    k_done = smooth(t01 * 8 - 0.70)
+    if k_done > 0:
+        # 中文必须走 CJK 字体:DejaVu Mono 没有汉字字形,会渲染成豆腐块
+        done_col = mix(PALETTE["bg"], PALETTE["accent2"], k_done)
+        prefix = "✓ 已写入 "
+        draw.text(
+            (x0 + 60, y0 + 570),
+            prefix,
+            font=FONTS.cjk(26, "Bold"),
+            fill=done_col,
+            anchor="lm",
+        )
+        draw.text(
+            (x0 + 60 + draw.textlength(prefix, font=FONTS.cjk(26, "Bold")), y0 + 570),
+            "output/blueprint.md",
+            font=FONTS.mono(26, bold=True),
+            fill=done_col,
             anchor="lm",
         )
     caption(draw, "诚实边界:源码可用 ≠ GPU 就绪,蓝图含晋级阶梯", smooth(t01 * 8 - 0.75))
@@ -676,9 +721,11 @@ def sc_numbers(img, draw, t01: float) -> None:
             outline=mix(PALETTE["bg"], PALETTE["line"], kk),
             width=2,
         )
+        # 数字从 0 涨到真值:静态瓷砖只是"结果",count-up 才有"增长"的叙事
+        counted = int(round(int(num) * smooth((t01 - i * 0.05) * 3.2)))
         draw.text(
             (x + tw_ / 2, y + th_ / 2 - 26),
-            num,
+            str(counted),
             font=FONTS.cjk(96, "Black"),
             fill=mix(PALETTE["bg"], PALETTE["accent"], kk),
             anchor="mm",
@@ -689,6 +736,13 @@ def sc_numbers(img, draw, t01: float) -> None:
             font=FONTS.cjk(32),
             fill=mix(PALETTE["bg"], PALETTE["fg"], kk),
             anchor="mm",
+        )
+        # 卡片底部一条随入场生长的细线,给静止瓷砖一点持续运动
+        bar_w = (tw_ - 120) * kk
+        draw.line(
+            [(x + 60, y + th_ - 30), (x + 60 + bar_w, y + th_ - 30)],
+            fill=mix(PALETTE["bg"], PALETTE["accent"], kk * 0.6),
+            width=3,
         )
     cap = "文档同步测试守护:README / 能力矩阵 / compose 指标表永不脱离注册表"
     caption(draw, cap, smooth(t01 * 8 - 0.9))
@@ -722,12 +776,27 @@ def sc_gates(img, draw, t01: float) -> None:
             outline=mix(PALETTE["bg"], PALETTE["accent2"], kk * 0.85),
             width=2,
         )
-        # 通过标记:圆点 + 勾(绿灯 = --mark 色)
+        # 通过标记:圆点先亮,勾再分两段画出(逐门"通过"的节奏感)
         check_col = mix(PALETTE["bg"], PALETTE["accent2"], kk)
         cx, cy = x + 44, y + bh / 2
-        draw.ellipse([cx - 17, cy - 17, cx + 17, cy + 17], outline=check_col, width=3)
-        draw.line([cx - 8, cy, cx - 2, cy + 7], fill=check_col, width=3)
-        draw.line([cx - 2, cy + 7, cx + 9, cy - 8], fill=check_col, width=3)
+        draw.ellipse(
+            [cx - 17, cy - 17, cx + 17, cy + 17],
+            outline=mix(PALETTE["bg"], PALETTE["accent2"], kk * 0.55),
+            width=3,
+        )
+        k_check = smooth((t01 - 0.22 - i * 0.06) * 6)
+        if k_check > 0:
+            if k_check < 0.5:
+                t = k_check / 0.5
+                draw.line([cx - 8, cy, cx - 8 + 6 * t, cy + 7 * t], fill=check_col, width=3)
+            else:
+                draw.line([cx - 8, cy, cx - 2, cy + 7], fill=check_col, width=3)
+                t = (k_check - 0.5) / 0.5
+                draw.line(
+                    [cx - 2, cy + 7, cx - 2 + 11 * t, cy + 7 - 15 * t],
+                    fill=check_col,
+                    width=3,
+                )
         draw.text(
             (x + 88, y + bh / 2),
             name,
@@ -750,6 +819,13 @@ def sc_gates(img, draw, t01: float) -> None:
             note,
             font=FONTS.cjk(30, "Bold"),
             fill=mix(PALETTE["bg"], PALETTE["accent"], k_hook),
+            anchor="mm",
+        )
+        draw.text(
+            (W / 2, y0 + 5 * (bh + 18) + 64),
+            "5 / 5 通过",
+            font=FONTS.cjk(26, "Bold"),  # 含中文,不能走 DejaVu Mono
+            fill=mix(PALETTE["bg"], PALETTE["accent2"], k_hook),
             anchor="mm",
         )
 
@@ -855,16 +931,36 @@ def sc_quickstart(img, draw, t01: float) -> None:
         "mmtrain registry list          # 查看全部零件",
         "PYTHONPATH=src python examples/train_sft_edit.py",
     ]
-    t_start, per = 0.12, 0.15
+    # 6.5s 内四行必须打完:前版 0.12+0.15*i 的节奏让最后一行常常停在半句
+    t_start, per = 0.06, 0.12
     for i, line in enumerate(lines):
-        seg = smooth((t01 - t_start - i * per) * 5)
+        seg = smooth((t01 - t_start - i * per) * 7)
         if seg <= 0:
             continue
         typed = int(len(line) * seg)
-        ly = y0 + 110 + i * 96
-        prompt = "$ " if i != 3 else "# "
-        col = PALETTE["fg"] if i != 3 else PALETTE["accent"]
-        draw.text((x0 + 44, ly), prompt + line[:typed], font=FONTS.mono(30), fill=col, anchor="lm")
+        ly = y0 + 100 + i * 88
+        shown = line[:typed]
+        cmd_part, hash_sep, note = shown.partition("#")
+        mono_font = FONTS.mono(30)
+        draw.text((x0 + 44, ly), "$ " + cmd_part, font=mono_font, fill=PALETTE["fg"], anchor="lm")
+        if hash_sep:  # 行内注释含中文,必须换 CJK 字体,否则豆腐块
+            off = draw.textlength("$ " + cmd_part, font=mono_font)
+            draw.text(
+                (x0 + 44 + off, ly),
+                "#" + note,
+                font=FONTS.cjk(28),
+                fill=PALETTE["muted"],
+                anchor="lm",
+            )
+    k_out = smooth(t01 * 8 - 0.78)
+    if k_out > 0:
+        draw.text(
+            (x0 + 44, y0 + 100 + 4 * 88),
+            "✓ loss 下降,指标已打印",
+            font=FONTS.cjk(28, "Bold"),  # 含中文,不能走 DejaVu Mono
+            fill=mix(PALETTE["bg"], PALETTE["accent2"], k_out),
+            anchor="lm",
+        )
     caption(draw, "8 个自包含示例:SFT · DPO · 多目标蒸馏 · RL · LCM · OPD", smooth(t01 * 8 - 0.8))
 
 
@@ -899,7 +995,8 @@ def sc_cta(img, draw, t01: float) -> None:
             box,
             42,
             fill=mix(PALETTE["bg"], PALETTE["panel"], k3),
-            outline=mix(PALETTE["bg"], PALETTE["accent"], k3),
+            # 收尾的呼吸感:边框亮度随节拍轻微起伏,避免最后一帧完全静止
+            outline=mix(PALETTE["bg"], PALETTE["accent"], k3 * (0.72 + 0.28 * math.sin(t01 * 12))),
             width=3,
         )
         color = mix(PALETTE["bg"], PALETTE["accent"], k3)
@@ -933,6 +1030,34 @@ def _scene_t01(row, frame: int) -> float:
     return (frame - start) / max(1, end - start - 1)
 
 
+def _draw_hud(img: Image.Image, table, frame: int, idx: int) -> None:
+    """全片 HUD:底部进度条 + 章节节点 + 右上角编号。
+
+    叠在最终帧(含交叉淡化)之上,不受分镜切换影响——十个静态分镜因此变成
+    一支有"章节感"的连续短片,观众始终知道看到哪了。
+    """
+    total = table[-1][2]
+    p = frame / max(1, total - 1)
+    draw = ImageDraw.Draw(img)
+    y = H - 26
+    left, right = 64, W - 64
+    draw.line([(left, y), (right, y)], fill=PALETTE["line"], width=2)
+    draw.line([(left, y), (left + (right - left) * p, y)], fill=PALETTE["accent"], width=3)
+    for i, (_, start, _, _) in enumerate(table):
+        cx = left + (right - left) * (start / total)
+        active = i == idx
+        color = PALETTE["accent"] if active else PALETTE["line"]
+        r = 5 if active else 3
+        draw.ellipse([cx - r, y - r, cx + r, y + r], fill=color)
+    draw.text(
+        (right, 58),
+        f"{idx + 1:02d} / {len(table):02d}",
+        font=FONTS.mono(20),
+        fill=PALETTE["muted"],
+        anchor="rm",
+    )
+
+
 def render_frame(table, frame: int) -> Image.Image:
     """渲染一帧;分镜切换处用 CROSSFADE 帧与前一场景尾帧交叉淡化,无黑场。"""
     idx = 0
@@ -950,8 +1075,11 @@ def render_frame(table, frame: int) -> Image.Image:
         prev_img = render_frame_at(prev_row, prev_row[2] - 1)  # 前场冻结于尾帧
         cur_img = render_frame_at(cur, frame)
         alpha = (tail_frames + 1) / max(1, CROSSFADE + 1)
-        return Image.blend(prev_img, cur_img, smooth(alpha))
-    return render_frame_at(cur, frame)
+        img = Image.blend(prev_img, cur_img, smooth(alpha))
+    else:
+        img = render_frame_at(cur, frame)
+    _draw_hud(img, table, frame, idx)
+    return img
 
 
 def render_frame_at(row, frame: int) -> Image.Image:

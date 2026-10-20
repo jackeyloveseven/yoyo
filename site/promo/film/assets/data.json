@@ -1,0 +1,330 @@
+{
+ "source": "make_film_data.py — build_builtin_registries() + 真实 CLI 输出 + pytest 收集",
+ "counts": {
+  "models": 7,
+  "models_shown": 6,
+  "objectives": 10,
+  "rewards": 7,
+  "rewards_shown": 6,
+  "examples": 8,
+  "adr": 6,
+  "tests": 104,
+  "gates": 5
+ },
+ "models": [
+  {
+   "id": "hidream",
+   "name": "HiDream",
+   "caps": [
+    "image_edit",
+    "image_training",
+    "t2i"
+   ]
+  },
+  {
+   "id": "klein",
+   "name": "Klein",
+   "caps": [
+    "image_edit",
+    "image_training",
+    "t2i"
+   ]
+  },
+  {
+   "id": "krea2",
+   "name": "Krea2",
+   "caps": [
+    "diffusion_alignment",
+    "image_edit",
+    "image_training"
+   ]
+  },
+  {
+   "id": "qwen_image",
+   "name": "Qwen-Image",
+   "caps": [
+    "image_edit",
+    "image_training"
+   ]
+  },
+  {
+   "id": "qwen_image_edit_2x",
+   "name": "Qwen-Image-Edit 2.x",
+   "caps": [
+    "image_edit",
+    "image_training"
+   ]
+  },
+  {
+   "id": "sensenova",
+   "name": "SenseNova",
+   "caps": [
+    "diffusion_alignment",
+    "image_edit",
+    "lora",
+    "t2i"
+   ]
+  }
+ ],
+ "matrix": {
+  "models": [
+   "hidream",
+   "klein",
+   "krea2",
+   "qwen_image",
+   "qwen_image_edit_2x",
+   "sensenova"
+  ],
+  "rows": [
+   {
+    "id": "diffusion_opsd",
+    "tag": "RL",
+    "required": [
+     "diffusion_alignment"
+    ],
+    "reward": true,
+    "cells": [
+     false,
+     false,
+     true,
+     false,
+     false,
+     true
+    ]
+   },
+   {
+    "id": "diffusionnft",
+    "tag": "RL",
+    "required": [
+     "diffusion_alignment"
+    ],
+    "reward": true,
+    "cells": [
+     false,
+     false,
+     true,
+     false,
+     false,
+     true
+    ]
+   },
+   {
+    "id": "edit_r1",
+    "tag": "RL",
+    "required": [
+     "diffusion_alignment",
+     "image_edit"
+    ],
+    "reward": true,
+    "cells": [
+     false,
+     false,
+     true,
+     false,
+     false,
+     true
+    ]
+   },
+   {
+    "id": "flow_grpo",
+    "tag": "RL",
+    "required": [
+     "diffusion_alignment"
+    ],
+    "reward": true,
+    "cells": [
+     false,
+     false,
+     true,
+     false,
+     false,
+     true
+    ]
+   },
+   {
+    "id": "flowmimic_opsd",
+    "tag": "蒸馏",
+    "required": [
+     "diffusion_alignment"
+    ],
+    "reward": false,
+    "cells": [
+     false,
+     false,
+     true,
+     false,
+     false,
+     true
+    ]
+   },
+   {
+    "id": "image_dpo",
+    "tag": "DPO",
+    "required": [
+     "image_training"
+    ],
+    "reward": false,
+    "cells": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     false
+    ]
+   },
+   {
+    "id": "image_opd",
+    "tag": "OPD",
+    "required": [
+     "image_training"
+    ],
+    "reward": true,
+    "cells": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     false
+    ]
+   },
+   {
+    "id": "image_sft",
+    "tag": "SFT",
+    "required": [
+     "image_training"
+    ],
+    "reward": false,
+    "cells": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     false
+    ]
+   },
+   {
+    "id": "latent_consistency",
+    "tag": "LCM",
+    "required": [
+     "image_training"
+    ],
+    "reward": false,
+    "cells": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     false
+    ]
+   },
+   {
+    "id": "on_policy_distill",
+    "tag": "OPD",
+    "required": [
+     "image_training"
+    ],
+    "reward": false,
+    "cells": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     false
+    ]
+   }
+  ]
+ },
+ "registry_list": [
+  "{",
+  "  \"checkpoints\": [",
+  "    \"v2_directory\"",
+  "  ],",
+  "  \"datasets\": [",
+  "    \"manifest\"",
+  "  ],",
+  "  \"models\": [",
+  "    \"firered\",",
+  "    \"hidream\",",
+  "    \"klein\",",
+  "    \"krea2\",",
+  "    \"qwen_image\",",
+  "    \"qwen_image_edit_2x\",",
+  "    \"sensenova\"",
+  "  ],",
+  "  \"objectives\": [",
+  "    \"diffusion_opsd\",",
+  "    \"diffusionnft\",",
+  "    \"edit_r1\",",
+  "    \"flow_grpo\",",
+  "    \"flowmimic_opsd\",",
+  "    \"image_dpo\",",
+  "    \"image_opd\",",
+  "    \"image_sft\",",
+  "    \"latent_consistency\",",
+  "    \"on_policy_distill\"",
+  "  ],",
+  "  \"rewards\": [",
+  "    \"edit_r1_mllm\",",
+  "    \"hpsv3pp\",",
+  "    \"identity\",",
+  "    \"none\",",
+  "    \"pickscore\",",
+  "    \"professional_ocr\",",
+  "    \"rational_rewards\"",
+  "  ]",
+  "}"
+ ],
+ "compose": {
+  "dataset": "manifest",
+  "disclaimer": "这是一份训练蓝图,不是可直接 launch 的 RunSpec。注册资产哈希与运行时拓扑由 WebTrainer 控制面在运行时填充。",
+  "metrics": [
+   "loss(流匹配 MSE)",
+   "per_sample_mse 分布(找出离群样本)",
+   "lr(学习率,配合调度器检查)"
+  ],
+  "model": "qwen_image_edit_2x",
+  "next_steps": [
+   "1. CPU preflight:`mmtrain phase run --phase preflight` 验证组件可构造、契约成立。",
+   "2. GPU no-update:跑一次前向,确认无参数更新下数值有限、显存可控。",
+   "3. one optimizer update:做一次完整更新,确认 loss 有限、梯度非 nan。",
+   "4. checkpoint readback:写出再读回 checkpoint,核对 SHA-256 与参数一致。",
+   "5. 冻结评估 + 质量 receipt:固定权重评估,登记 receipt 后才可 launch_enabled=true。"
+  ],
+  "notes": [],
+  "objective": "image_sft",
+  "reward": "none",
+  "reward_metrics": [],
+  "summary": "Flow SFT:监督流匹配,最小化预测速度与目标速度的 MSE。",
+  "visualizations": [
+   "训练/验证 loss 曲线",
+   "采样网格(同一 prompt,看拟合是否过/欠)"
+  ]
+ },
+ "gates": [
+  [
+   "ruff check / format",
+   "风格与格式"
+  ],
+  [
+   "check_v2_quality",
+   "AST 门:行数/复杂度/去重"
+  ],
+  [
+   "check_structure",
+   "依赖方向与组件存在"
+  ],
+  [
+   "check_docs",
+   "断链/重复/文档预算"
+  ],
+  [
+   "pytest tests/v2",
+   "104 个数值不变量"
+  ]
+ ]
+}

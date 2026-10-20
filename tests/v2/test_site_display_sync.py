@@ -41,6 +41,8 @@ README = ROOT / "README.md"
 SNAPSHOT_JS = ROOT / "site" / "assets" / "registry-data.js"
 INDEX_HTML = ROOT / "site" / "index.html"
 PROMO_PY = ROOT / "site" / "promo" / "render_promo.py"
+FILM_TIMELINE = ROOT / "site" / "promo" / "film" / "timeline.json"
+FILM_DATA = ROOT / "site" / "promo" / "film" / "assets" / "data.json"
 SOURCING_README = ROOT / "docs" / "sourcing" / "README.md"
 
 MARKETING_EXCLUDED_MODELS = frozenset({"firered"})
@@ -142,18 +144,19 @@ def _collected_tests() -> int:
     return int(match.group(1))
 
 
-def _promo_scene_durations() -> list[float]:
-    """render_promo.py 分镜表的时长序列(站点/宣传片/README 三处共用)。
+def _film_timeline() -> dict[str, Any]:
+    """线上宣传片的时间线(由 script.json 的配音驱动,12 句 = 12 个镜头)。"""
+    return json.loads(FILM_TIMELINE.read_text(encoding="utf-8"))
 
-    ``^`` 锚定行首:注释掉的 ``# @scene("cta", 5.0)`` 不得计入,否则分镜少一个而
-    时长断言仍是旧的。
-    """
-    return [
-        float(d)
-        for d in re.findall(
-            r'^@scene\(\s*"[a-z_]+"\s*,\s*([\d.]+)\s*\)', _PROMO_SOURCE, re.MULTILINE
-        )
-    ]
+
+def _promo_scene_durations() -> list[float]:
+    """线上宣传片的分镜时长序列(站点/宣传片/README 三处共用)。"""
+    return [float(b["end"]) - float(b["start"]) for b in _film_timeline()["beats"]]
+
+
+def _promo_duration() -> float:
+    """整片时长(含句间停顿),站点文案里的"N 秒"以它为准。"""
+    return float(_film_timeline()["duration"])
 
 
 def _assert_count(pattern: str, text: str, expected: int, label: str) -> None:
@@ -288,6 +291,29 @@ def test_site_matrix_matches_live_registry() -> None:
         )
 
 
+def test_film_data_matches_live_registry() -> None:
+    """线上片子的 data.json(数字与终端输出)必须与注册表/真实 CLI 同源。"""
+    data = json.loads(FILM_DATA.read_text(encoding="utf-8"))
+    counts = data["counts"]
+    registries = build_builtin_registries()
+    assert counts["models"] == len(registries.models.entries())
+    assert counts["objectives"] == len(registries.objectives.entries())
+    assert counts["rewards"] == len(registries.rewards.entries())
+    assert counts["examples"] == len(list((ROOT / "examples").glob("*.py")))
+    assert counts["adr"] == len(list((ROOT / "docs" / "adr").glob("[0-9]*.md")))
+    # 片子里的测试数是渲染时的快照:按下限校验,新增测试不假红
+    assert counts["tests"] <= _collected_tests()
+
+    live_models = {e.plugin_id: e.capabilities for e in registries.models.entries()}
+    live_objectives = {e.plugin_id: e for e in registries.objectives.entries()}
+    assert set(data["matrix"]["models"]) == set(live_models) - MARKETING_EXCLUDED_MODELS
+    for row in data["matrix"]["rows"]:
+        required = set(live_objectives[row["id"]].metadata.get("required_model_capabilities", ()))
+        for model_id, cell in zip(data["matrix"]["models"], row["cells"], strict=True):
+            expected = required <= live_models[model_id]
+            assert cell is expected, f"{row['id']}×{model_id}: 片子标 {cell},注册表判定 {expected}"
+
+
 def test_site_display_numbers_trace_to_code() -> None:
     """index.html 的每个对外数字都必须等于代码里的真实值(对外数字红线)。"""
     html = _INDEX_HTML_TEXT
@@ -339,9 +365,9 @@ def test_site_display_numbers_trace_to_code() -> None:
 
     # ⑦ 视频时长与分镜数(由 render_promo.py 的分镜表定义);两处副本都要对齐
     durations = _promo_scene_durations()
-    _assert_count(r"(\d+) 秒看完", html, int(sum(durations)), "站点宣传片时长")
-    _assert_count(r"(\d+) 秒 ·", html, int(sum(durations)), "站点视频图注时长")
-    cn_scenes = re.findall(r"([一二三四五六七八九十]+)个分镜", html)
+    _assert_count(r"(\d+) 秒看完", html, round(_promo_duration()), "站点宣传片时长")
+    _assert_count(r"(\d+) 秒 ·", html, round(_promo_duration()), "站点视频图注时长")
+    cn_scenes = re.findall(r"([一二三四五六七八九十]+)个镜头", html)
     assert [_cn_int(t) for t in cn_scenes] == [len(durations)], (
         f"站点分镜数 {cn_scenes} != 分镜表 {len(durations)}"
     )
@@ -417,8 +443,7 @@ def test_readme_display_numbers_trace_to_code() -> None:
 
     # ④ CPU 示例数与宣传片时长
     _assert_count(r"①(\d+) 个 CPU 示例", text, counts["examples"], "README 示例数")
-    durations = _promo_scene_durations()
-    _assert_count(r"含 (\d+) 秒宣传片", text, int(sum(durations)), "README 宣传片时长")
+    _assert_count(r"含 (\d+) 秒宣传片", text, round(_promo_duration()), "README 宣传片时长")
 
     # ⑤ 两处模型清单必须与注册表**逐个名字**一致(只对条目数会让重复/改名蒙混过关)
     lists = re.findall(r"Klein、([^|）]+)", text)
