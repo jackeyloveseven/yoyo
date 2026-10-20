@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
+import pytest
 import torch
 from PIL import Image
 
@@ -160,6 +162,43 @@ def test_sft_dpo_and_distillation_objectives() -> None:
 
     proj = RepaProjector(dit_hidden_size=8, encoder_dim=12, hidden_dim=16)
     assert repa_cosine_alignment_loss(proj(pred), torch.randn(2, 6, 12)).ndim == 0
+
+
+def test_objective_losses_have_analytic_values() -> None:
+    """核心 loss 不能只断言 ndim==0:返回恒 0 或符号写反都满足它。
+
+    这些用例取闭式解——相同输入时 loss 为 0、偏移 1 时 MSE 为 1、
+    DPO 无偏好差时为 log 2、NormGuard 范数翻倍时超额为 3。
+    """
+    x = torch.randn(2, 6, 8)
+
+    assert flow_sft_loss(x, x).item() == pytest.approx(0.0, abs=1e-6)
+    assert flow_sft_loss(x, x + 1.0).item() == pytest.approx(1.0, abs=1e-5)
+
+    same = flow_opd_ode_loss(
+        latents=x,
+        student_velocity=x,
+        teacher_velocity=x,
+        delta_t=torch.tensor([-0.2, -0.2]),
+    )
+    assert same.loss.item() == pytest.approx(0.0, abs=1e-6)
+
+    dpo = flow_dpo_loss(
+        policy_chosen=x,
+        policy_rejected=x,
+        reference_chosen=x,
+        reference_rejected=x,
+        chosen_target=x,
+        rejected_target=x,
+        beta=10.0,
+    )
+    assert dpo.loss.item() == pytest.approx(math.log(2.0), abs=1e-6)
+
+    assert norm_guard_loss(x, x).penalty.item() == pytest.approx(0.0, abs=1e-6)
+    assert norm_guard_loss(x * 2, x).penalty.item() == pytest.approx(3.0, abs=1e-5)
+
+    assert repa_cosine_alignment_loss(x, x).item() == pytest.approx(-1.0, abs=1e-5)
+    assert repa_cosine_alignment_loss(x, -x).item() == pytest.approx(1.0, abs=1e-5)
 
 
 def test_model_adapters_and_registry_wiring() -> None:

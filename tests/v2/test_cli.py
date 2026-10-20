@@ -62,3 +62,19 @@ def test_registry_cli_lists_bounded_plugins(capsys) -> None:
     assert payload["models"] == sorted(
         entry.plugin_id for entry in build_builtin_registries().models.entries()
     )
+
+
+def test_user_input_errors_exit_2(tmp_path, capsys) -> None:
+    """用户输入类错误必须以 exit 2 收口,不能把 traceback 甩给用户。"""
+    missing = tmp_path / "missing.json"
+    assert main(["plan", "validate", "--spec", str(missing)]) == 2
+
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+    assert main(["plan", "validate", "--spec", str(broken)]) == 2
+
+    assert main(["compose", "--model", "nope", "--objective", "image_sft", "--reward", "none"]) == 2
+
+    streams = capsys.readouterr()
+    assert streams.err.count("mmtrain:") == 3
+    assert "Traceback" not in streams.err

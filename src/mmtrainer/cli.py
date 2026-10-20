@@ -187,3 +187,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except MMTrainerError as error:
         print(f"mmtrain: {error}", file=sys.stderr)
         return 2
+    except (ValueError, OSError, EOFError) as error:
+        # 用户输入类错误(spec 不存在/JSON 语法错/schema 校验失败/参数不匹配)
+        # 必须以 exit 2 收口,不能把 traceback 甩给用户。ValidationError 与
+        # JSONDecodeError 都是 ValueError 的子类,FileNotFoundError 是 OSError。
+        print(f"mmtrain: {error}", file=sys.stderr)
+        return 2
