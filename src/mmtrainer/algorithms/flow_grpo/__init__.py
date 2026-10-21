@@ -1,7 +1,7 @@
 """Model-independent Flow-GRPO mathematical primitives."""
 
 from .adapter import FlowGRPOAdapter
-from .advantages import AdvantageResult, group_relative_advantages
+from .advantages import AdvantageResult, compute_group_advantages, group_relative_advantages
 from .config import FlowGRPOConfig
 from .mix import ProgressiveMixWindow
 from .objectives import PPOConfig, PPOInputs, PPOMetrics, ppo_clipped_surrogate
@@ -35,6 +35,7 @@ __all__ = [
     "TrajectoryBatch",
     "TransitionDistribution",
     "WeightedReward",
+    "compute_group_advantages",
     "gaussian_mean_kl",
     "gate_resolution_probabilities",
     "group_relative_advantages",

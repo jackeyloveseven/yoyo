@@ -251,8 +251,20 @@ def test_model_adapters_and_registry_wiring() -> None:
     sn_adapter = SenseNovaAdapter()
     sn_batch = sn_adapter.prepare_sft_batch(target_latents=torch.randn(2, 4, 8))
     assert sn_batch.noisy_latents.shape == (2, 4, 8)
+    sn_win, sn_lose = sn_adapter.prepare_dpo_batch(
+        win_latents=torch.randn(2, 4, 8),
+        lose_latents=torch.randn(2, 4, 8),
+    )
+    assert torch.allclose(sn_win.sigmas, sn_lose.sigmas)
+    assert sn_win.noisy_latents.shape == (2, 4, 8)
 
     hd_adapter = HiDreamAdapter()
+    hd_batch = hd_adapter.prepare_sft_batch(target_latents=torch.randn(2, 4, 8))
+    assert hd_batch.noisy_latents.shape == (2, 4, 8)
+    hd_vel = hd_adapter.predict_velocity(lambda hidden_states, **kw: hidden_states * 0.5, hd_batch)
+    assert hd_vel.shape == hd_batch.noisy_latents.shape
+    assert torch.allclose(hd_vel, hd_batch.noisy_latents * 0.5)
+
     hd_win, hd_lose = hd_adapter.prepare_dpo_batch(
         win_latents=torch.randn(2, 4, 8),
         lose_latents=torch.randn(2, 4, 8),

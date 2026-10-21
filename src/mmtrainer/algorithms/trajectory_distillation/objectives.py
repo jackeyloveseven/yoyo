@@ -174,9 +174,12 @@ def tdm_generator_loss(
     )
 
 
+tdm_cooperative_distribution_matching_loss = tdm_generator_loss
+
 __all__ = [
     "TDMFakeScoreMetrics",
     "TDMGeneratorMetrics",
+    "tdm_cooperative_distribution_matching_loss",
     "tdm_fake_score_loss",
     "tdm_generator_loss",
 ]

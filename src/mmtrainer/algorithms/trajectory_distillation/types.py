@@ -53,4 +53,22 @@ class TDMScoreBatch:
             raise ValueError("TDM score weights must be non-negative")
 
 
-__all__ = ["TDMScoreBatch", "TDMStudentSample"]
+@dataclass(frozen=True)
+class TDMTeacherRollout:
+    """One teacher trajectory rollout and its terminal clean prediction."""
+
+    clean: Tensor
+    timesteps: Tensor | None = None
+    trajectory: tuple[Tensor, ...] | None = None
+    context: Any = None
+
+    def __post_init__(self) -> None:
+        require_float_finite("teacher clean", self.clean)
+        if self.timesteps is not None:
+            require_float_finite("teacher timesteps", self.timesteps)
+        if self.trajectory is not None:
+            for item in self.trajectory:
+                require_float_finite("teacher trajectory state", item)
+
+
+__all__ = ["TDMScoreBatch", "TDMStudentSample", "TDMTeacherRollout"]

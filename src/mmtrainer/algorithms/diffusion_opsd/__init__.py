@@ -1,7 +1,12 @@
 """Reward-guided DiffusionOPSD mathematical primitives."""
 
 from .config import BackboneProfile, DiffusionOPSDConfig, diffusion_opsd_defaults
-from .ema import EMAParameterStore, behavior_policy_retention, checkpoint_policy_retention
+from .ema import (
+    EMAParameterStore,
+    ModelEMA,
+    behavior_policy_retention,
+    checkpoint_policy_retention,
+)
 from .objectives import (
     DiffusionOPSDFittingConfig,
     DiffusionOPSDFittingInputs,
@@ -31,6 +36,7 @@ __all__ = [
     "DiffusionOPSDTargets",
     "DiffusionOPSDWeights",
     "EMAParameterStore",
+    "ModelEMA",
     "PickScoreDifferentiableReward",
     "behavior_policy_retention",
     "checkpoint_policy_retention",

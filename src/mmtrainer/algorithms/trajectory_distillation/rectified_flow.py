@@ -10,8 +10,9 @@ import torch
 from torch import Tensor
 
 from mmtrainer.algorithms.common import require_float_finite
+from mmtrainer.nn.flow import euler_flow_step
 
-from .types import TDMScoreBatch, TDMStudentSample
+from .types import TDMScoreBatch, TDMStudentSample, TDMTeacherRollout
 
 TDMModelRole = Literal["student", "teacher", "teacher_unconditional", "fake"]
 InitialNoiseFn = Callable[[Any, torch.Generator | None], Tensor]
@@ -33,6 +34,18 @@ class RectifiedFlowTDMConfig:
     event_dims: int
     snr_cap: float = 5.0
     share_time_across_leading_dims: int = 0
+
+
+def heun_midpoint_step(
+    latents: Tensor,
+    v_curr: Tensor,
+    v_next: Tensor,
+    sigma_curr: Tensor | float,
+    sigma_next: Tensor | float,
+) -> Tensor:
+    """Second-order Heun midpoint step for rectified flow trajectories."""
+    blended_v = 0.5 * (v_curr.to(latents.dtype) + v_next.to(latents.dtype))
+    return euler_flow_step(latents, blended_v, sigma_curr, sigma_next)
 
 
 def interpolate_descending_time_grid(
@@ -117,6 +130,8 @@ class RectifiedFlowTDMAdapter:
         conditioning: Any,
         role: TDMModelRole,
     ) -> Tensor:
+        if role not in ("student", "teacher", "teacher_unconditional", "fake"):
+            raise ValueError(f"unsupported model role: {role}")
         model_time = self.model_time_fn(noise_time, conditioning)
         velocity = self.velocity_fn(state, model_time, conditioning, role)
         require_float_finite(f"{role} velocity", velocity)
@@ -251,10 +266,67 @@ class RectifiedFlowTDMAdapter:
         expanded = self._broadcast_time(batch.noise_time, batch.noisy, self.event_dims)
         return batch.noisy - expanded * velocity
 
+    def rollout_teacher(
+        self,
+        conditioning: Any,
+        *,
+        teacher_steps: int,
+        method: Literal["euler", "heun"] = "euler",
+        cfg_scale: float = 1.0,
+        generator: torch.Generator | None = None,
+        return_trajectory: bool = False,
+    ) -> TDMTeacherRollout:
+        if teacher_steps <= 0:
+            raise ValueError("teacher_steps must be positive")
+        if not torch.isfinite(torch.tensor(cfg_scale, dtype=torch.float64)) or cfg_scale < 1:
+            raise ValueError("cfg_scale must be finite and at least 1")
+        if method not in ("euler", "heun"):
+            raise ValueError(f"unsupported stepping method: {method}")
+        grid = self._time_grid(conditioning, teacher_steps)
+        state = self.initial_noise_fn(conditioning, generator)
+        require_float_finite("initial teacher noise", state)
+        current = state
+        trajectory = [current] if return_trajectory else None
+        for step in range(teacher_steps):
+            t_curr = grid[step]
+            t_next = grid[step + 1]
+            t_curr_val = float(t_curr.item())
+            t_next_val = float(t_next.item())
+            if cfg_scale > 1.0:
+                v_cond = self._velocity(current, t_curr, conditioning, "teacher")
+                v_uncond = self._velocity(current, t_curr, conditioning, "teacher_unconditional")
+                v_curr = v_uncond + cfg_scale * (v_cond - v_uncond)
+            else:
+                v_curr = self._velocity(current, t_curr, conditioning, "teacher")
+            if method == "euler":
+                current = euler_flow_step(current, v_curr, t_curr_val, t_next_val)
+            else:
+                euler_next = euler_flow_step(current, v_curr, t_curr_val, t_next_val)
+                if cfg_scale > 1.0:
+                    v_next_cond = self._velocity(euler_next, t_next, conditioning, "teacher")
+                    v_next_uncond = self._velocity(
+                        euler_next, t_next, conditioning, "teacher_unconditional"
+                    )
+                    v_next = v_next_uncond + cfg_scale * (v_next_cond - v_next_uncond)
+                else:
+                    v_next = self._velocity(euler_next, t_next, conditioning, "teacher")
+                current = heun_midpoint_step(current, v_curr, v_next, t_curr_val, t_next_val)
+            if return_trajectory and trajectory is not None:
+                trajectory.append(current)
+        return TDMTeacherRollout(
+            clean=current,
+            timesteps=grid,
+            trajectory=tuple(trajectory) if trajectory is not None else None,
+        )
+
 
 __all__ = [
-    "interpolate_descending_time_grid",
     "RectifiedFlowAnchorContext",
     "RectifiedFlowTDMAdapter",
+    "RectifiedFlowTDMConfig",
     "TDMModelRole",
+    "TDMTeacherRollout",
+    "euler_flow_step",
+    "heun_midpoint_step",
+    "interpolate_descending_time_grid",
 ]

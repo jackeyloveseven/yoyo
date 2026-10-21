@@ -1,34 +1,46 @@
-# Training Code v2 architecture
+# YoYo (Training Code v2) 架构分层与设计图谱
 
-Training Code v2 is an installable package with one command boundary and a lazy plugin registry. WebTrainer compiles
-an immutable `mmtrainer.run-spec.v2`; `mmtrain` validates its canonical SHA before running a phase. Model paths,
-service URLs, hosts and output directories are resolved from registered IDs by the trusted runtime agent and are never
-accepted as free component configuration.
+YoYo 的核心理念非常朴素：**把文生图与图像编辑的后训练，拆成一组解耦、可各自单测的“乐高积木”**。
+我们不搞把所有逻辑塞进一个万能大类的黑盒框架，而是通过单命令行边界与注册表懒加载，实现清晰分层的训练体系。
 
 ```text
-WebTrainer recipe -> RunSpec -> mmtrain phase run
-                              -> engine lifecycle
-                              -> lazy model/objective/dataset/reward plugins
-                              -> runtime events/checkpoints
+WebTrainer 配方 -> 不可变 RunSpec (SHA-256 哈希鉴真)
+                -> mmtrain 阶段执行器 (Lifecycle Gate: 校验/训练/评估/归档)
+                -> 纯函数算法 / 求解器 / 适配器 (按需组装)
+                -> 原子检查点与结构化事件 (Runtime)
 ```
 
-## Dependency direction
+## 1. 严格的分层红线（架构门禁强制）
 
-- `config`, `interfaces`, `registry` and `engine` form the model-neutral core and must import without Torch.
-- `nn` provides model-neutral flow interpolation, ODE solvers (`euler_flow_step`, `dpm2_flow_step`), schedules, FSDP2 helpers and `NativeLoRARouter` (sparse LoRA-MoE).
-- `algorithms` owns objective math (`sft_dpo`, `diffusion_alignment`, `flow_grpo`, `diffusion_opsd`, `edit_r1`, `flowmimic_opsd`, `reward_matching`, `trajectory_distillation`) and cannot import a concrete model.
-- `models`, `datasets` and `rewards` implement registered plugins and composable adapters (`BaseModelAdapter` subclasses); model packages cannot import each other.
-- `runtime` owns events, artifacts and checkpoint integrity, not SSH, tmux, GPU reservation or process supervision.
-- `examples` demonstrates how to freely compose `nn`, `models`, `datasets`, `algorithms`, `rewards` and `runtime` for SFT, DPO, distillation, RL and custom model onboarding.
+- **中立核心（`config`、`interfaces`、`registry`、`engine`）**：严禁在模块顶层导入 PyTorch，毫秒级快速启动。
+- **神经网络工具箱（`nn`）**：流插值加噪、Euler/DPM2 求解器、学习率调度、FSDP2 配置与 LoRA-MoE 路由，不碰任何具体模型。
+- **算法损失库（`algorithms`）**：纯数学损失函数（SFT、DPO、GRPO、NFT、OPSD、LCM、OPD、TDM、AWM/RAM），严禁 `import models`。
+- **模型适配器（`models`）**：具体模型的“专业翻译官”（继承 `BaseModelAdapter`），将独有张量转为公共流格式。**模型间严禁相互导入**（同家族演进除外，须配 ADR）。
+- **数据与打分（`datasets` / `rewards`）**：标准 JSONL 清单解析、动态批处理与多模态打分协议。
+- **运行时安全（`runtime`）**：负责哈希鉴真与原子落盘，不掺和集群调度、SSH 登录或物理显卡分配。
 
-The engine deliberately does not provide one universal optimizer step. An ObjectivePlugin owns its inner training
-algorithm while the engine owns only phase order, qualification, component construction and structured results.
+## 2. 为什么不做“大一统的 Trainer Step”？
 
-## Lineage boundary
+后训练（SFT、成对偏好 DPO、少步蒸馏、轨迹 RL）的数据流与采样循环天差地别。强行抽象成一个 `optimizer_step()` 只会演化出布满分支语句的庞大黑盒。YoYo 让每个目标独立拥有数学计算，引擎只管阶段体检、状态流转与结果收集。
 
-`training-code-v1.9.0` is the final v1 source contract. Old full-state exact-resume uses its immutable source bundle.
-v2 can import only policy tensors through `mmtrain checkpoint import-policy`; the receipt explicitly records that
-optimizer, EMA, history, RNG and data cursor were reset.
+## 3. 核心优化决策的设计依据
 
-All built-in v2 catalog entries initially support CPU preflight only. Train/evaluate/publish stay disabled until a
-model-specific no-update, one-update and checkpoint-readback receipt is registered.
+### 资产内容寻址（SHA-256） vs 裸文件系统路径
+若训练配方直接传递 `/data/image.png` 这类裸路径，会引入严重风险：
+1. **彻底杜绝路径逃逸与注入**：避免恶意或失误的相对路径逃逸沙箱越权访问敏感文件；
+2. **保障绝对复现**：裸路径下的文件随时可能被外部进程覆写或替换。使用 SHA-256 内容寻址后，配方成为数学意义上不可篡改的唯一快照，杜绝隐式数据漂移。
+
+### 变长参考图掩码（Masking） vs 强行裁剪为单图
+1. **多模态编辑的原生支持**：多图编辑（如主体融合、背景替换）天然包含不同数量的参考图，强行截成单图会损坏条件语义，丢弃样本又会缩水数据多样性；
+2. **张量规整与注意力屏蔽**：`collate_edit_batch` 将样本参考图动态填充至批次最大图数 `[B, max_ref, C, H, W]` 并生成布尔掩码 `control_mask`。在显存中保持高效密集张量的同时，配合注意力掩码完全中性化填充槽位。
+
+### 5 点 ArcFace 仿射对齐加余弦相似度
+1. **空间归一化消除刚体形变**：直接裁切人脸会受姿态倾斜、平移与背景干扰。通过 5 点关键点仿射变换正规化到 112×112 标准空间，抹平几何扰动，提取纯净面部身份；
+2. **单位超球面上的平滑梯度**：ArcFace 深度特征分布在单位超球面上，余弦相似度在 `[-1, 1]` 区间尺度恒定、梯度平滑无极值爆炸，可作为稳定抗饱和的强化学习奖励。
+
+## 4. 留给未来更强模型的“按图索骥”路线
+
+所有设计边界均保留了演进接口，更强模型接手后可依据以下线索继续深度优化：
+1. **执行引擎本地单步打通**：当前默认停留在 Preflight 阶段。若要在本地打通单步训练更新，可在 `CatalogObjectivePlugin.train()` 与 `CatalogModelPlugin.load()` 实现轻量单机 Fallback。
+2. **资产映射沙箱闭环**：`ComponentSpec` 严禁传递文件路径以防逃逸；下一步应在运行时建立 `AssetRef(sha256)` 到本地文件缓存的映射器。
+3. **分桶与特征预计算**：引入长宽比分桶与离线 VAE 潜空间预编码，进一步释放训练吞吐。

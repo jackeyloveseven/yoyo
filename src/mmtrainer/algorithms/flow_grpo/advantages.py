@@ -61,3 +61,8 @@ def group_relative_advantages(
         group_std=group_std,
         zero_variance_mask=zero_variance_mask,
     )
+
+
+compute_group_advantages = group_relative_advantages
+
+__all__ = ["AdvantageResult", "compute_group_advantages", "group_relative_advantages"]

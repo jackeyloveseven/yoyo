@@ -44,38 +44,15 @@
 
 ---
 
-## 4. 采纳判定与分层建议
+## 4. 采纳与延后判定
 
-### 采纳（不违反现有设计、体量可控、收益真实）
-
-1. **站点展示面的 SSOT 覆盖**（对账 #8/#9）
-   - site 三处硬编码面 2026-10-14 已补 `test_site_display_sync.py`（逐格断言矩阵、逐数字
-     断言站点与宣传片）；"从注册表自动生成矩阵"未做——手写矩阵已由测试钉死。
-2. **`pyproject.toml` 可选依赖分组**（对账 #11）
-   - 纯配置。按真实依赖面命名：src 第三方仅五个，`gpu`/`rl`/`export` 无内容可装，
-     造空组即 speculative；真实缺口 `promo`（matplotlib/numpy/Pillow，CI 未装曾致
-     三连红）2026-10-14 已补。
-3. **宣传视频：吸收"叙事优先"思路，但用实测数字**
-   - Act 1（预检对比）+ Act 3（流匹配轨迹动力学）确有意义；"<50ms"须先实测再上镜（实测
-     1.4ms，更有利）。Act 2 现有 `parts` 分镜已在做；Act 3 是 `flow` 分镜的自然延伸。
-
-### 拒绝或延后（依赖不存在的前提 / speculative）
-
-| 评审建议 | 理由 |
-|---|---|
-| `capability_planner.py` | 功能已存在于 `engine/runner.py` 与 `compose/compose.py`，重复造轮子 |
-| `receipt mint`（三阶段） | 其三阶段 Receipt 模型不存在；GPU 晋级前没有可铸凭证 |
-| `checkpoint export --format diffusers\|comfy-lora` | 下游生态需求未明确，属过早抽象 |
-| `nn/flow.py` SDE 漂移 / log-prob 算子 | 属 GPU 晋级后范围——真实训练循环才需要真实算子 |
-| 异步 reward 打分进程池 | 同步阻塞是真实问题，但需分布式 benchmark 证据后再动 |
-| `estimate_fsdp2_memory_bytes` / `validate_hybrid_mesh` | 前置依赖（GPU 基线）未满足 |
+- **采纳**：①站点展示面 SSOT 覆盖（`test_site_display_sync.py` 逐格断言矩阵与对外数字）；②`pyproject.toml` 补齐 `promo` extra；③宣传视频吸收“实测叙事”，用真实测得的 1.4ms 代替虚构数字。
+- **延后或拒绝**：①`capability_planner.py` 与 `receipt mint`（与已有 runner 重复或前提不存在）；②下游导出与 SDE 算子（属 GPU 晋级后范畴，避免过早抽象）；③异步打分与显存预估（待基准证据支持）。
 
 ---
 
-## 5. 给评审方的三条建设性反馈
+## 5. 三条建设性反馈
 
-1. **否定性论断须有一手证据**："缺少 X / 仅支持 Y"最容易错，建议每条附 `文件:行号`。
-2. **区分"已实现的边界"与"遗漏"**：大量"看起来缺"的算子是有意的 `launch_enabled=false`
-   边界，评审前请先读 [`docs/BUILDING.md`](../BUILDING.md)「待办与已知边界」。
-3. **数字必须可复现**："<50ms"、"1~32 卡"这类硬数字若无实测背书不应出现在对外
-   材料——与本仓库"结果可核对"的立场直接冲突。
+1. **否定性论断须有一手证据**：“缺少 X/仅支持 Y”极易误判，必须附带源码位置。
+2. **区分“计划内边界”与“遗漏”**：未上卡算子属计划内 `launch_enabled=false` 边界，非缺陷。
+3. **对外数字必须实测可复现**：严禁未经测量的虚报，严格遵守“结果可核对”红线。

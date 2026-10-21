@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import torch
 from torch import Tensor
 
+from mmtrainer.algorithms.common import require_float_finite
+
 
 @dataclass(frozen=True)
 class PPOMetrics:
@@ -65,6 +67,15 @@ def _masked_mean(value: Tensor, mask: Tensor) -> Tensor:
 
 
 def _validate_ppo(inputs: PPOInputs, config: PPOConfig) -> None:
+    for name, value in (
+        ("old_logprobs", inputs.old_logprobs),
+        ("new_logprobs", inputs.new_logprobs),
+        ("advantages", inputs.advantages),
+        ("reference_kl", inputs.reference_kl),
+    ):
+        require_float_finite(name, value)
+    if inputs.ref_logprobs is not None:
+        require_float_finite("ref_logprobs", inputs.ref_logprobs)
     shape = inputs.old_logprobs.shape
     if inputs.new_logprobs.shape != shape or inputs.reference_kl.shape != shape:
         raise ValueError("old_logprobs, new_logprobs, and reference_kl must match")
@@ -72,8 +83,6 @@ def _validate_ppo(inputs: PPOInputs, config: PPOConfig) -> None:
         raise ValueError("ref_logprobs must match old_logprobs shape")
     if inputs.old_logprobs.ndim != 3:
         raise ValueError("per-step logprobs must have shape [batch, group, step]")
-    if not inputs.old_logprobs.is_floating_point():
-        raise TypeError("logprobs must use a floating dtype")
     if config.clip_epsilon is not None and not 0 < config.clip_epsilon < 1:
         raise ValueError("clip_epsilon must be in (0, 1) when supplied")
     if config.kl_beta < 0:
@@ -148,6 +157,7 @@ def ppo_clipped_surrogate(
     policy_loss = -_masked_mean(surrogate, valid_mask)
     kl_loss = config.kl_beta * _masked_mean(reference_kl_compute, valid_mask)
     loss = policy_loss + kl_loss
+    require_float_finite("Flow-GRPO loss", loss)
     clip_fraction = _masked_mean((ratio != clipped_ratio).to(dtype=old_logprobs.dtype), valid_mask)
     approx_kl = 0.5 * _masked_mean(log_ratio.square(), valid_mask)
     valid_fraction = valid_mask.to(dtype=compute_dtype).mean()

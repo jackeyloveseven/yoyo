@@ -107,8 +107,11 @@ class EMAParameterStore:
         self.updates = updates
 
 
+ModelEMA = EMAParameterStore
+
 __all__ = [
     "EMAParameterStore",
+    "ModelEMA",
     "behavior_policy_retention",
     "checkpoint_policy_retention",
 ]

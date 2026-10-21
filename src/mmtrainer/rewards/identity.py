@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 import torch
 import torch.nn.functional as F
 
@@ -12,6 +15,14 @@ ARCFACE_REFERENCE_LANDMARKS_112: tuple[tuple[float, float], ...] = (
     (41.5493, 92.3655),
     (70.7299, 92.2041),
 )
+
+__all__ = [
+    "ARCFACE_REFERENCE_LANDMARKS_112",
+    "IdentityScorer",
+    "align_face",
+    "cosine_identity_loss",
+    "estimate_similarity_transform_5pt",
+]
 
 
 def estimate_similarity_transform_5pt(
@@ -114,3 +125,219 @@ def cosine_identity_loss(
     target_norm = F.normalize(target_embedding.detach().float(), p=2, dim=-1)
     cos_sim = (pred_norm * target_norm).sum(dim=-1)
     return (1.0 - cos_sim).mean()
+
+
+def _normalize_tensor_shape(t: torch.Tensor) -> torch.Tensor:
+    if t.ndim == 2 and t.shape[0] == 1:
+        return t.squeeze(0)
+    return t
+
+
+def _is_embedding_tuple(first: Any) -> bool:
+    if not isinstance(first, (tuple, list)) or len(first) != 2:
+        return False
+    elem = first[0]
+    if isinstance(elem, torch.Tensor):
+        return True
+    if isinstance(elem, (list, tuple)) and len(elem) > 0 and isinstance(elem[0], (int, float)):
+        return True
+    return False
+
+
+class IdentityScorer:
+    """Composable identity reward scorer evaluating cosine similarity against target identity."""
+
+    def __init__(
+        self,
+        target_embedding: torch.Tensor | None = None,
+        feature_extractor: Any | None = None,
+        name: str = "identity_scorer",
+        default_score: float = 0.0,
+        **kwargs: Any,
+    ) -> None:
+        self.target_embedding = target_embedding
+        self.feature_extractor = feature_extractor
+        self.name = name
+        self.default_score = float(default_score)
+        self.config = kwargs
+
+    def score_embeddings(
+        self,
+        pred_embeddings: torch.Tensor,
+        target_embeddings: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Compute cosine similarity between predicted and target embeddings."""
+        if target_embeddings is None:
+            if self.target_embedding is None:
+                raise ValueError(
+                    "target_embeddings must be provided in score_embeddings or at initialization"
+                )
+            target_embeddings = self.target_embedding
+
+        if not isinstance(pred_embeddings, torch.Tensor):
+            pred_embeddings = torch.as_tensor(pred_embeddings)
+        if not isinstance(target_embeddings, torch.Tensor):
+            target_embeddings = torch.as_tensor(target_embeddings)
+
+        if not torch.isfinite(pred_embeddings).all():
+            raise ValueError("pred_embeddings contains non-finite values (NaN or Inf)")
+        if not torch.isfinite(target_embeddings).all():
+            raise ValueError("target_embeddings contains non-finite values (NaN or Inf)")
+
+        pred_norm = F.normalize(pred_embeddings.float(), p=2, dim=-1)
+        target_norm = F.normalize(target_embeddings.float(), p=2, dim=-1)
+        cos_sim = (pred_norm * target_norm).sum(dim=-1)
+        return torch.clamp(cos_sim, -1.0, 1.0)
+
+    def _warp_faces(
+        self,
+        faces: torch.Tensor,
+        landmarks: torch.Tensor | None = None,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        if landmarks is None:
+            return faces
+        if faces.ndim == 4 and faces.shape[0] > 1:
+            if landmarks.ndim == 3 and landmarks.shape[0] == faces.shape[0]:
+                return torch.stack(
+                    [align_face(faces[i], landmarks[i], **kwargs) for i in range(faces.shape[0])],
+                    dim=0,
+                )
+            return torch.stack(
+                [align_face(faces[i], landmarks, **kwargs) for i in range(faces.shape[0])],
+                dim=0,
+            )
+        return align_face(faces, landmarks, **kwargs)
+
+    def score_aligned_faces(
+        self,
+        pred_faces: torch.Tensor,
+        target_embedding: torch.Tensor | None = None,
+        landmarks: torch.Tensor | None = None,
+        **kwargs: Any,
+    ) -> torch.Tensor:
+        """Warp faces if landmarks provided, extract embeddings, and return score_embeddings."""
+        target_emb = target_embedding if target_embedding is not None else self.target_embedding
+        if target_emb is None:
+            raise ValueError(
+                "target_embedding must be provided in score_aligned_faces or at initialization"
+            )
+        faces = self._warp_faces(pred_faces, landmarks=landmarks, **kwargs)
+        if self.feature_extractor is not None:
+            feat_input = faces.unsqueeze(0) if faces.ndim == 3 else faces
+            pred_emb = self.feature_extractor(feat_input)
+            if (
+                faces.ndim == 3
+                and isinstance(pred_emb, torch.Tensor)
+                and pred_emb.ndim == 2
+                and pred_emb.shape[0] == 1
+            ):
+                pred_emb = pred_emb.squeeze(0)
+        else:
+            pred_emb = faces.flatten(1) if faces.ndim >= 3 else faces
+        return self.score_embeddings(pred_emb, target_emb)
+
+    def _score_dict_embeddings(self, samples: Sequence[dict[str, Any]]) -> list[float]:
+        preds: list[torch.Tensor] = []
+        targets: list[torch.Tensor] = []
+        for item in samples:
+            if not isinstance(item, dict) or "pred_embedding" not in item:
+                raise ValueError("Inconsistent sample format in batch")
+            t = item.get("target_embedding", self.target_embedding)
+            if t is None:
+                raise ValueError("target_embedding must be provided in dict or at initialization")
+            preds.append(_normalize_tensor_shape(torch.as_tensor(item["pred_embedding"])))
+            targets.append(_normalize_tensor_shape(torch.as_tensor(t)))
+        scores = self.score_embeddings(torch.stack(preds), torch.stack(targets))
+        return [float(s.item()) for s in scores.view(-1)]
+
+    def _score_dict_faces(self, samples: Sequence[dict[str, Any]]) -> list[float]:
+        scores_list: list[float] = []
+        for item in samples:
+            if not isinstance(item, dict):
+                raise ValueError("Inconsistent sample format in batch")
+            face = item.get("pred_faces", item.get("image"))
+            lm = item.get("landmarks")
+            tgt = item.get("target_embedding", self.target_embedding)
+            res = self.score_aligned_faces(torch.as_tensor(face), tgt, landmarks=lm)
+            scores_list.extend([float(s.item()) for s in res.view(-1)])
+        return scores_list
+
+    def _score_dict_samples(self, samples: Sequence[dict[str, Any]]) -> list[float]:
+        first = samples[0]
+        if "pred_embedding" in first:
+            return self._score_dict_embeddings(samples)
+        if "pred_faces" in first or "image" in first:
+            return self._score_dict_faces(samples)
+        return [float(self.default_score) for _ in samples]
+
+    def _score_face_pairs(
+        self, preds: Sequence[torch.Tensor], targets: Sequence[torch.Tensor]
+    ) -> list[float]:
+        scores_list: list[float] = []
+        for p, t in zip(preds, targets, strict=True):
+            res = self.score_aligned_faces(p, t)
+            scores_list.extend([float(s.item()) for s in res.view(-1)])
+        return scores_list
+
+    def _score_tuple_pair(self, samples: Sequence[tuple[Any, ...] | list[Any]]) -> list[float]:
+        preds: list[torch.Tensor] = []
+        targets: list[torch.Tensor] = []
+        for item in samples:
+            if not (isinstance(item, (tuple, list)) and len(item) >= 2):
+                raise ValueError("Inconsistent sample format in batch")
+            preds.append(torch.as_tensor(item[0]))
+            targets.append(torch.as_tensor(item[1]))
+        if preds[0].ndim >= 3:
+            return self._score_face_pairs(preds, targets)
+        preds_t = torch.stack([_normalize_tensor_shape(p) for p in preds])
+        targets_t = torch.stack([_normalize_tensor_shape(t) for t in targets])
+        scores = self.score_embeddings(preds_t, targets_t)
+        return [float(s.item()) for s in scores.view(-1)]
+
+    def _score_tuple_triplet(self, samples: Sequence[tuple[Any, ...] | list[Any]]) -> list[float]:
+        scores_list: list[float] = []
+        for item in samples:
+            p = torch.as_tensor(item[0])
+            lm = torch.as_tensor(item[1]) if item[1] is not None else None
+            tgt = torch.as_tensor(item[2]) if item[2] is not None else self.target_embedding
+            res = self.score_aligned_faces(p, tgt, landmarks=lm)
+            scores_list.extend([float(s.item()) for s in res.view(-1)])
+        return scores_list
+
+    def _score_tuple_single(self, samples: Sequence[tuple[Any, ...] | list[Any]]) -> list[float]:
+        preds = [_normalize_tensor_shape(torch.as_tensor(item[0])) for item in samples]
+        scores = self.score_embeddings(torch.stack(preds), self.target_embedding)
+        return [float(s.item()) for s in scores.view(-1)]
+
+    def _score_tuple_samples(self, samples: Sequence[tuple[Any, ...] | list[Any]]) -> list[float]:
+        first = samples[0]
+        if _is_embedding_tuple(first):
+            return self._score_tuple_pair(samples)
+        if len(first) == 3 and isinstance(first[0], torch.Tensor):
+            return self._score_tuple_triplet(samples)
+        if (
+            len(first) == 1
+            and isinstance(first[0], torch.Tensor)
+            and self.target_embedding is not None
+        ):
+            return self._score_tuple_single(samples)
+        return [float(self.default_score) for _ in samples]
+
+    def __call__(self, samples: Sequence[Any]) -> list[float]:
+        """Score samples, returning a list of float rewards."""
+        if not samples:
+            return []
+        first = samples[0]
+        if isinstance(first, dict):
+            return self._score_dict_samples(samples)
+        if isinstance(first, (tuple, list)):
+            return self._score_tuple_samples(samples)
+        if isinstance(first, torch.Tensor) and self.target_embedding is not None:
+            if first.ndim >= 3:
+                res = [self.score_aligned_faces(s, self.target_embedding) for s in samples]
+                return [float(s.item()) for r in res for s in r.view(-1)]
+            preds_t = torch.stack(list(samples))
+            scores = self.score_embeddings(preds_t, self.target_embedding)
+            return [float(s.item()) for s in scores.view(-1)]
+        return [float(self.default_score) for _ in samples]

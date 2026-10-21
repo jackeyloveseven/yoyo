@@ -28,7 +28,7 @@ class ProfessionalOCRPlugin(CatalogRewardBackend):
 
 class IdentityRewardPlugin(CatalogRewardBackend):
     plugin_id = "identity"
-    scorer_import_path = "mmtrainer.rewards.protocols:CallableRewardScorer"
+    scorer_import_path = "mmtrainer.rewards.identity:IdentityScorer"
 
 
 class NoRewardPlugin(CatalogRewardBackend):

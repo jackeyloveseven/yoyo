@@ -49,35 +49,6 @@ class SenseNovaAdapter(BaseModelAdapter):
             encoder_hidden_states=kwargs.get("encoder_hidden_states"),
         )
 
-    def dpm2_step(
-        self,
-        latents: torch.Tensor,
-        v_curr: torch.Tensor,
-        v_mid: torch.Tensor,
-        sigma_curr: torch.Tensor | float,
-        sigma_next: torch.Tensor | float,
-    ) -> torch.Tensor:
-        return dpm2_flow_step(latents, v_curr, v_mid, sigma_curr, sigma_next)
-
-    def predict_velocity(
-        self, transformer: Any, batch: MultiStreamLatentBatch, **kwargs: Any
-    ) -> torch.Tensor:
-        res = transformer(
-            hidden_states=batch.noisy_latents,
-            timestep=batch.sigmas,
-            encoder_hidden_states=batch.encoder_hidden_states,
-            pooled_projections=batch.pooled_projections,
-            **kwargs,
-        )
-        return res[0].float() if isinstance(res, tuple) else res.float()
-
-
-class HiDreamAdapter(BaseModelAdapter):
-    """Composable model adapter for HiDream T2I and preference alignment."""
-
-    model_id = "hidream"
-    default_lora_target_modules = SENSENOVA_LORA_TARGET_MODULES
-
     def prepare_dpo_batch(
         self, **kwargs: Any
     ) -> tuple[MultiStreamLatentBatch, MultiStreamLatentBatch]:
@@ -104,3 +75,37 @@ class HiDreamAdapter(BaseModelAdapter):
                 encoder_hidden_states=enc,
             ),
         )
+
+    def dpm2_step(
+        self,
+        latents: torch.Tensor,
+        v_curr: torch.Tensor,
+        v_mid: torch.Tensor,
+        sigma_curr: torch.Tensor | float,
+        sigma_next: torch.Tensor | float,
+    ) -> torch.Tensor:
+        return dpm2_flow_step(latents, v_curr, v_mid, sigma_curr, sigma_next)
+
+    def predict_velocity(
+        self, transformer: Any, batch: MultiStreamLatentBatch, **kwargs: Any
+    ) -> torch.Tensor:
+        res = transformer(
+            hidden_states=batch.noisy_latents,
+            timestep=batch.sigmas,
+            encoder_hidden_states=batch.encoder_hidden_states,
+            pooled_projections=batch.pooled_projections,
+            **kwargs,
+        )
+        return res[0].float() if isinstance(res, tuple) else res.float()
+
+
+class HiDreamAdapter(SenseNovaAdapter):
+    """Composable model adapter for HiDream T2I and preference alignment."""
+
+    model_id = "hidream"
+    default_lora_target_modules = SENSENOVA_LORA_TARGET_MODULES
+
+    def prepare_dpo_batch(
+        self, **kwargs: Any
+    ) -> tuple[MultiStreamLatentBatch, MultiStreamLatentBatch]:
+        return super().prepare_dpo_batch(**kwargs)

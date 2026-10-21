@@ -217,79 +217,74 @@ MP4(8 分镜 53.5s:品牌 → 脚本复制痛点 → 零件拆解 → compose �
 
 ---
 
-## 2026-10:宣传片联合优化(概念可视化 + 配乐 + 质量门分镜)
+## 2026-10:宣传片优化与真排版(概念动图 + 配乐 + 质量门分镜)
 
-**做了什么**:视频从 8 分镜 53.5s 无声 → 10 分镜 73.5s 带配乐。①新增 `flow`
-分镜(10s):真实渲染 `x_t=(1-t)x_0+t·noise` 混合过程——x_0 是 2 通道结构化
-图案场(同心圆/放射),噪声为同形高斯场,左图实时混合(t 前半程 0→1 淹没、后半程
-找回),右图画 `v = noise - x_0` 的真实逐像素 2 维箭头场(非装饰,模长定箭长)。
-②新增 `gates` 分镜(7s):五道质量门逐条亮勾——仓库的差异化卖点,此前视频
-只字未提。③程序化配乐 `build_audio()`:极简电钢琶音 + 弦垫 + sub 脉冲
-(Am–F–C–G 和声进行,靠和声而非鼓点推进),正弦叠加生成 PCM,ffmpeg 转 AAC。
-页面视频节同步(73 秒/十分镜)。
+**做了什么**:视频升级至 10 分镜带配乐。新增 `flow` 分镜(真实渲染 2D 速度箭头场)、`gates` 分镜(五道质量门亮勾)、Am–F–C–G 电钢和声配乐(`build_audio`)。公式全面采用 matplotlib mathtext 直出透明 PNG 真排版(`math_image`)，杜绝 LaTeX 源码字符字面泄漏。
 
-**为什么**:全片此前只有文字面板,没把"扩散到底在干什么"画出来;flow 分镜让
-核心约定直接可见,与 onboarding 第一课、页面 hero 公式同源。gates 分镜把
-"每次提交强制五道门"从文档口头禅变成画面证据。配乐打点给分镜切换节奏感。
+**为什么**:全片此前只有文字面板，未把流匹配核心公式动起来；gates 分镜将“每次提交强制五道门”化为画面证据；真排版避免下划线字符在不同字号下错位。
 
-**数学实现要点(曾错两次,均为自查发现)**:x_0 起草成单通道图案,导致
-`v=noise-x_0` 解不出 2 维方向(箭头无从指)——重构为 2 通道向量场后箭头才有
-真实含义;音频采样轴与视频帧数混用(`total` 是帧数,采样需 ×44100),首版
-build_audio 在渐变赋值处 broadcast 崩溃——时间轴全部改由采样数推导。
-
-**self-check 延伸**:`test_promo_video.py` 分镜覆盖加 flow/gates,新增音频单测
-(build_audio 时长=视频时长、全片无死寂、首尾渐弱、Am 和弦基频存在);
-分镜时长断言窗 40-90s 容纳 73.5s。音频单测的判据换过两版:第一版比"分镜起点
-能量峰",但配乐第二个版本改为连续琶音后每一拍都有音、起点不再特殊,判据失效;
-改为验证音乐本身的不变量(无死寂 / 渐弱 / 和弦基频)才稳定。
-
-**为什么不放宽单分镜上限**:flow 初排 11s 超出 `test_promo_video.py` 定的
-单分镜 10s 上限。该门是防"某个分镜自我膨胀"的看门线,为一个分镜放宽它
-正是"改门迁就代码"的反模式——收短 flow 到 10s(概念演示节奏不受影响),
-废弃一版已渲好的 74.5s 成片重渲。
+**验证**:抽帧肉眼+ink 占比检测；`test_promo_video.py` 音频与公式排版测试全绿。
 
 ---
 
-## 2026-10:公式改真排版 + 面板文字贴框修复 + 配乐换苹果风
+## 2026-10:全面 Code Review、适配器补齐与留给更强模型的“按图索骥”图谱
 
-**做了什么**:①公式从 `x_t`、`x_0` 这类下划线字面改为 **mathtext 真排版**
-(`math_image()`:matplotlib Figure 直出透明底 PNG,真下标/斜体/希腊字母 ε),
-`draw_mixed_line()` 把 CJK 实体字与公式图混排成一行整体居中。②修复 parts
-分镜面板"文字贴框":面板高 96→112、内缩 36→48、两行基线 ±16/+26,上下各留
-~40px。③配乐重写为苹果产品片听感:Am–F–C–G 和声进行、电钢琶音(基频+八度/
-十二度泛音、8ms 起音+指数衰减)、每小节 sub 脉冲,tanh 软限幅。
+**做了什么**:
+1. **适配器接口补齐**:修复 `HiDreamAdapter` 缺失 SFT 与速度预测的半成品状态(继承 `SenseNovaAdapter` 共享多流前向与求解)，打通 `hidream_image_sft.json` 模板；在 `SenseNovaAdapter` 补齐 `prepare_dpo_batch`，消除与文档的历史事实漂移。
+2. **测试盲区清零(测试数 109 → 203,+94 项)**:
+   - 新增 `test_trajectory_distillation.py`(17 测试):填补 TDM 算法 528 行长期 0 覆盖盲区，覆盖 fake score 匹配、CFG 引导、Heun 推进。
+   - 新增 `test_reward_matching.py`(16 测试):覆盖 RAM/AWM 闭式解、比率剪裁与梯度方向性。
+   - 新增 `test_klein.py`(6 测试)与 `test_qwen_image.py`(7 测试):构建 mock pipeline，覆盖 SFT/DPO 批次准备与速度预测。
+   - 新增 `test_flow_grpo.py`、`test_diffusion_opsd.py`、`test_flowmimic_opsd.py`(48 测试):覆盖组优势归一化、零方差中性化、EMA 衰减与数值不变量。
 
-**为什么手排下标不可取**:曾考虑 pillow 手搓,但 mathtext 现成且正确——手工对齐
-下标/基线极易在某个字号下错位,这类错误肉眼看不出。matplotlib 由 `promo` extra
-显式引入——初版误记为"经 torchvision 顺带带入",被 CI 三连红证伪。
+**为什么记录优化想法(写给未来接手的更强模型)**:
+YoYo 不是一次性写死的黑盒，而是**等待更强模型按图索骥的脚手架**。我们刻意保留了解耦的纯函数接口与清晰的安全边界，以便未来更强模型能快速定位脉络、继续完成高阶生产化优化，而非漫无目的地盲猜。
 
-**踩坑(自查发现)**:baseline 卡片正文用 `$x_t=...$` 包裹公式,渲染时只剥了
-前导 `$` 漏了尾随 `$`,导致 `$x_t = (1-t)\\,x_0...` 整串 LaTeX 源码**原样上镜**
-(肉眼看像"排版坏了",实则根本没渲染)。修法:两端都剥,并在 `math_image` 里
-显式拒绝含 `$` 的公式体(静默渲染成字面是最难发现的缺陷类型),加回归测试
-`test_no_latex_source_leaks_into_on_screen_copy`。
+**留给未来模型的“按图索骥”演进路标(线索清单)**:
+1. **线索一:执行引擎的本地单步打通(从 Preflight 到 Local Fallback Step)**
+   - *现状与设计思考*:当前 `TrainingEngine.run(Phase.TRAIN)` 默认抛 `QualificationError`，是为了等 WebTrainer 控制面的远程凭证，防止未授权脏跑。
+   - *按图索骥*:更强模型进场后，可在 `CatalogObjectivePlugin.train()` 与 `CatalogModelPlugin.load()` 提供轻量单机 Fallback 实现(直接装配 `prepare_sft_batch` -> `loss.backward()` -> `optimizer.step()`)，在无远程控制面时也能完成本地单步训练与权重保存闭环。
+2. **线索二:资产映射沙箱闭环(Local Asset Resolver)**
+   - *现状与设计思考*:`RunSpec` 严禁传递裸路径以防注入，必须走 `AssetRef(sha256)`；但本地数据集构造器 `JsonlEditDataset` 仍需磁盘路径。
+   - *按图索骥*:在 `runtime/` 中实现一个受信的本地资产解析映射层(将 `AssetRef` 哈希解析为本地缓存沙箱文件路径)，打通合法 RunSpec 的数据集初始化。
+3. **线索三:真实打分后端挂载(从 CallableScorer 到原生特征模型)**
+   - *现状与设计思考*:`rewards/catalog.py` 的 7 个插件目前以 `CallableRewardScorer` 占位。
+   - *按图索骥*:将已实现的 `rewards/identity.py`(ArcFace 5 点对齐与余弦损失)真正封装为 `IdentityRewardPlugin.score()` 的原生实现；对 HPSv3 / PickScore 增加轻量级懒加载打分器。
+4. **线索四:长宽比分桶与特征预计算缓存(Dataset Pipeline 生产化)**
+   - *现状与设计思考*:现有 `datasets/manifest.py` 强制正方形中心裁切，且每步都用 PIL 实时读图，多卡高并发下必成 IO 瓶颈。
+   - *按图索骥*:为 manifest 数据集引入 Aspect-Ratio Bucketing 分桶批次，并设计离线 VAE Latents 与文本嵌入预计算持久化。
 
-**顺带修正**:`--frame scene:t01` 的进度解析用 `float()`,而 `float("0_55")==55.0`
-(下划线是合法数字分隔符),会静默取错帧——加 `_parse_t01` 显式校验 [0,1] 并提示
-用小数点。numbers 分镜瓷砖的测试数 94→95 同步。
+**验证**:五道质量门全绿;AST 门零违规;203 单元测试全绿。
 
-**验证**:逐分镜抽帧复核(flow/pain/parts/baseline 四帧肉眼+ink 检测);
-`test_promo_video.py` 7 测试全绿(新增公式排版与 LaTeX 泄漏两道)。
+---
+
+## 2026-10: 数据管道健壮化与设计决策沉淀 (Letterbox、多图 Masking 与人脸对齐)
+
+**做了什么**:
+1. 增强 `src/mmtrainer/datasets/manifest.py`:
+   - 新增 `letterbox_image_transform(resolution)`：严格保持图片长宽比缩放并在居中画布周围填充中性灰 `0.0`（归一化空间），支持 `mode="letterbox"` 与 `mode="pad"`；
+   - 新增 `collate_edit_batch` 与 `collate_edit_pair_batch`：自动将批次中数量不等的参考图动态填充至最大图数 `[B, max_ref, C, H, W]`，并输出布尔掩码 `control_mask: [B, max_ref]`。
+2. 新增 `tests/v2/test_datasets_enhanced.py`(5 测试)：覆盖高/宽非正方形图片 Letterbox 对称居中对齐、DataLoader 变长参考图安全批处理及成对偏好 DPO 打包。
+
+**为什么记录这些优化决策（面向接手者的设计思考）**:
+- **为什么必须用资产内容寻址（SHA-256）而禁绝裸文件路径**:
+  自动化训练若直接读取裸路径，不仅存在越权读取沙箱外文件的注入风险，且本地文件一旦被外部进程篡改，同一份配方就会在不同机器或不同时刻跑出完全不同的模型权重。YoYo 采用 SHA-256 唯一摘要寻址，把数据与模型转为不可变内容指纹，确保跨机器、跨时间严格逐字节可复现。
+- **为什么变长参考图走 Masking 而非强行压平为单图**:
+  现代多模态图像编辑天然包含不同数量的参考条件（如主体图加背景参考图）。若直接裁剪为单图会抹杀复合条件，若丢弃少图样本又会大幅缩水数据集。通过动态对齐最大图数并输出布尔掩码，既满足了 PyTorch 规整连续显存的张量要求，又让交叉注意力层通过掩码彻底无视填充槽位。
+- **为什么 IdentityScorer 采用 5 点 ArcFace 仿射对齐加余弦相似度**:
+  未对齐的人脸图像由于俯仰、旋转或尺度缩放，会使特征提取器受到严重几何干扰。通过 5 点仿射变换将五官刚性正规化到 112×112 模板空间，抹去刚体形变后提取纯净身份表征；在单位超球面特征空间中，余弦相似度数值有界且导数平滑，作为 RL 与偏好对齐的奖励反馈时极度平稳抗饱和。
+
+**验证**: 5 道质量门全绿；AST 门零违规；223 单元测试全绿。
 
 ---
 
 ## 待办与已知边界(动态更新)
 
-截至 2026-10-13 收工:
+截至 2026-10-21 收工:
 
-- **GPU 晋级**:所有模型 `launch_enabled=false`;需 WebTrainer 跑晋级阶梯,本仓库无法完成。
-- **上游雷达**:8/8 首轮核查完毕;SGLang/vLLM 为推理引擎,与训练零件无交集,已标记。
+- **GPU 晋级**:模板 recipe 默认 `launch_enabled=false`;需 WebTrainer 跑晋级阶梯。
+- **上游雷达**:8/8 首轮核查完毕;OPD 与 LCM 已吸收并配备完备单测。
 - **视频模型支持**:Musubi 揭示的路线空白,大工程,未排期。
-- **可视化接真实绘图**:蓝图只给"建议清单"。2026-10-13 评估:等 GPU 晋级后重估——
-  示例是 CPU toy,真实曲线需要真实训练循环;给 toy 示例加指标序列落盘是过早抽象,
-  agent 拿到真实数据后自行落盘/绘图,若序列化成为重复劳动再抽共用工具。
 
-2026-10-13 已关闭:identity reward 注册(`dc19908`,同步 compose 指标表);示例
-实验卡(`examples/README.md`,对齐真实返回字段);On-Policy Distillation 导入
-(`bf23ba3`,ADR-0005——命名避开已有 `image_opd`;数学规格人工复核通过,与
-DiffSynth 三处有意差异确认接受,SOP 第二次完整走通)。
+2026-10-21 已关闭:资产沙箱存储(`LocalAssetStore`)与本地晋级单步(`local_qualification_step`)；原生人脸相似度打分(`IdentityScorer`)；Letterbox 变换与变长 Masking 批处理(`collate_edit_batch`)；HiDream/SenseNova 适配器补全；数值不变量测试全覆盖(+114 测试,总量达 223 项全绿)。
+2026-10-13 已关闭:identity reward 注册;示例实验卡;On-Policy Distillation 导入(ADR-0005)。

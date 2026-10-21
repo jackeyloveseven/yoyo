@@ -101,7 +101,10 @@ class CatalogDatasetPlugin(CatalogPlugin):
 
     def build_dataset(self, **kwargs: Any) -> Any:
         dataset_cls = self.resolve_dataset_class()
+        resolver = kwargs.pop("resolver", None)
         merged = {**self.component.config, **kwargs}
+        if "data_jsonl" not in kwargs and self.component.assets and resolver is not None:
+            merged["data_jsonl"] = resolver.resolve(self.component.assets[0])
         return dataset_cls(**merged)
 
     def load(self, context: PluginContext) -> Any:
